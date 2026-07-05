@@ -68,5 +68,6 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M0 in progress — docs updated (membership model + rulings);
-code not started.
+Milestone: M0 COMPLETE (exit criteria verified: two tenants sign up,
+T-1 isolation suite passes). M1 not started — propose a task breakdown
+and wait for approval before beginning.
