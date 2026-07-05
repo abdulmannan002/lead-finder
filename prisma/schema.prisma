@@ -1,0 +1,425 @@
+// SignX Reach — full schema per docs/02_Database_Design_ERD.md
+// Enums here are the single source of truth for the whole codebase.
+//
+// Tenancy rules (docs/02 §3, §5):
+// - Every tenant-scoped model has tenantId; child models (ScrapeRun,
+//   SequenceStep, Enrollment, Message) denormalize it even though they
+//   are reachable via a parent — the isolation extension scopes them
+//   directly.
+// - User is a GLOBAL identity (no tenantId); tenancy/roles live on
+//   Membership.
+// - Two partial indexes on Enrollment are added in a raw migration
+//   (Prisma cannot express them): the sender hot-query index and the
+//   one-active-enrollment-per-lead unique.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum EmailProvider {
+  GMAIL_OAUTH
+  SMTP
+}
+
+enum AccountStatus {
+  ACTIVE
+  WARMUP
+  ERROR
+  DISABLED
+}
+
+enum IntegrationKind {
+  APIFY
+  HUNTER
+  ANTHROPIC
+  TELEGRAM
+}
+
+enum QueryStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum LeadStatus {
+  NEW
+  ENRICHING
+  READY
+  UNREACHABLE
+  DO_NOT_CONTACT
+  BOUNCED
+  ARCHIVED
+}
+
+enum EmailSource {
+  APIFY
+  SCRAPE
+  HUNTER
+  IMPORT
+  MANUAL
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum EnrollmentStatus {
+  QUEUED
+  ACTIVE
+  REPLIED
+  COMPLETED
+  STOPPED
+  BOUNCED
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+  RECEIVED
+}
+
+// ---------- Identity & tenancy ----------
+
+model Tenant {
+  id             String       @id @default(uuid())
+  name           String
+  slug           String       @unique
+  status         TenantStatus @default(ACTIVE)
+  sendingEnabled Boolean      @default(true)
+  timezone       String       @default("UTC")
+  createdAt      DateTime     @default(now())
+
+  memberships   Membership[]
+  invitations   Invitation[]
+  refreshTokens RefreshToken[]
+  emailAccounts EmailAccount[]
+  integrations  Integration[]
+  scrapeQueries ScrapeQuery[]
+  scrapeRuns    ScrapeRun[]
+  leads         Lead[]
+  campaigns     Campaign[]
+  sequenceSteps SequenceStep[]
+  enrollments   Enrollment[]
+  messages      Message[]
+  dailyMetrics  DailyMetric[]
+  activityLogs  ActivityLog[]
+}
+
+/// GLOBAL identity — deliberately NO tenantId. Tenancy and roles live on
+/// Membership. Never add tenant-scoped fields here.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  totpSecret   String?
+  createdAt    DateTime @default(now())
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  invitesSent   Invitation[]   @relation("InvitedBy")
+  activityLogs  ActivityLog[]
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      UserRole
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  role        UserRole
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String?
+  invitedBy   User?     @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, email])
+}
+
+/// Refresh tokens are hashed, rotating, and bound to the ACTIVE tenant of
+/// the session that issued them. All of a user's tokens are revoked on
+/// password change.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Integrations & sending accounts ----------
+
+model EmailAccount {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  address        String
+  provider       EmailProvider
+  credentialsEnc String
+  keyVersion     Int           @default(1)
+  dailyCap       Int           @default(30)
+  fromName       String?
+  signature      String?
+  status         AccountStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  campaigns Campaign[]
+
+  @@index([tenantId])
+}
+
+model Integration {
+  id         String          @id @default(uuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind       IntegrationKind
+  keyEnc     String
+  keyVersion Int             @default(1)
+  config     Json?
+  status     AccountStatus   @default(ACTIVE)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([tenantId, kind])
+  @@index([tenantId])
+}
+
+// ---------- Sourcing ----------
+
+model ScrapeQuery {
+  id           String      @id @default(uuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId   String?
+  campaign     Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  searchString String
+  city         String
+  maxResults   Int         @default(100)
+  status       QueryStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  runs ScrapeRun[]
+
+  @@index([tenantId, status])
+}
+
+model ScrapeRun {
+  id         String      @id @default(uuid())
+  tenantId   String // denormalized from query (standing rule, docs/02 §3)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  queryId    String
+  query      ScrapeQuery @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  status     RunStatus   @default(RUNNING)
+  found      Int         @default(0)
+  duplicates Int         @default(0)
+  rawStats   Json?
+  startedAt  DateTime    @default(now())
+  finishedAt DateTime?
+
+  leads Lead[]
+
+  @@index([tenantId])
+  @@index([queryId])
+}
+
+// ---------- Leads ----------
+
+model Lead {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scrapeRunId   String?
+  scrapeRun     ScrapeRun?   @relation(fields: [scrapeRunId], references: [id], onDelete: SetNull)
+  company       String
+  websiteDomain String
+  email         String?
+  emailSource   EmailSource?
+  phone         String?
+  city          String?
+  category      String?
+  firstLine     String?
+  status        LeadStatus   @default(NEW)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  enrollments Enrollment[]
+
+  @@unique([tenantId, websiteDomain])
+  @@index([tenantId, status])
+}
+
+// ---------- Campaigns ----------
+
+model Campaign {
+  id             String         @id @default(uuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Optional while DRAFT; required (validated in service) to ACTIVATE.
+  // v1: exactly one sending account per campaign (FR-6.1).
+  emailAccountId String?
+  emailAccount   EmailAccount?  @relation(fields: [emailAccountId], references: [id], onDelete: Restrict)
+  name           String
+  offerText      String?
+  scheduleWindow Json?
+  status         CampaignStatus @default(DRAFT)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  steps         SequenceStep[]
+  enrollments   Enrollment[]
+  scrapeQueries ScrapeQuery[]
+
+  @@index([tenantId, status])
+}
+
+model SequenceStep {
+  id         String   @id @default(uuid())
+  tenantId   String // denormalized from campaign (standing rule, docs/02 §3)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stepOrder  Int
+  subjectTpl String
+  bodyTpl    String
+  delayDays  Int      @default(0)
+  threaded   Boolean  @default(true)
+
+  messages Message[]
+
+  @@unique([campaignId, stepOrder])
+  @@index([tenantId])
+}
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  tenantId    String // denormalized from campaign (standing rule, docs/02 §3)
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId  String
+  campaign    Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId      String
+  lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  currentStep Int              @default(0)
+  status      EnrollmentStatus @default(QUEUED)
+  nextDueAt   DateTime?
+  claimedAt   DateTime?
+  replyText   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  messages Message[]
+
+  @@unique([leadId, campaignId])
+  @@index([tenantId])
+  // Partial indexes added in raw migration (docs/02 §3):
+  //  - (status, nextDueAt) WHERE status IN ('QUEUED','ACTIVE')  [sender hot query]
+  //  - UNIQUE (leadId)     WHERE status IN ('QUEUED','ACTIVE')  [one active enrollment per lead]
+}
+
+model Message {
+  id            String           @id @default(uuid())
+  tenantId      String // denormalized from enrollment (standing rule, docs/02 §3)
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollmentId  String
+  enrollment    Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  stepId        String?
+  step          SequenceStep?    @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  direction     MessageDirection
+  providerMsgId String?
+  subject       String?
+  body          String?
+  status        MessageStatus
+  sentAt        DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@index([providerMsgId])
+  @@index([enrollmentId, sentAt])
+  @@index([tenantId])
+}
+
+// ---------- Metrics & audit ----------
+
+model DailyMetric {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  day          DateTime @db.Date
+  leadsScraped Int      @default(0)
+  emailsFound  Int      @default(0)
+  sent         Int      @default(0)
+  replies      Int      @default(0)
+  bounces      Int      @default(0)
+  errors       Int      @default(0)
+
+  @@unique([tenantId, day])
+}
+
+model ActivityLog {
+  id       String   @id @default(uuid())
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action   String
+  payload  Json?
+  at       DateTime @default(now())
+
+  @@index([tenantId, at])
+}
