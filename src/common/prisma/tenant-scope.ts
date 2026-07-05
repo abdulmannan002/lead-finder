@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { RequestContext } from '../context/request-context';
+import { currentContext, RequestContext } from '../context/request-context';
 
 /** Thrown when a tenant-scoped model is touched with no tenant context. */
 export class TenantContextError extends Error {
@@ -20,6 +20,15 @@ export class TenantMismatchError extends Error {
 
 /** Thrown for models/operations the scoped client refuses to serve. */
 export class ScopedClientViolationError extends Error {}
+
+/**
+ * Create-input helper for tenant-scoped models: the extension stamps
+ * tenantId at runtime, so call sites must not pass it. Usage:
+ *   data: { ... } satisfies TenantCreateData<Prisma.XUncheckedCreateInput>
+ *         as Prisma.XUncheckedCreateInput
+ * keeps every other field type-checked while omitting tenantId.
+ */
+export type TenantCreateData<T> = Omit<T, 'tenantId' | 'tenant'>;
 
 /**
  * Tenant-scoped models, derived from the schema itself: every model with a
@@ -136,8 +145,6 @@ export const tenantScopeExtension = Prisma.defineExtension((client) =>
     query: {
       $allModels: {
         $allOperations({ model, operation, args, query }) {
-          // Imported lazily to avoid a require cycle at module load.
-          const { currentContext } = require('../context/request-context') as typeof import('../context/request-context');
           return query(applyTenantScope(model, operation, args, currentContext()));
         },
       },

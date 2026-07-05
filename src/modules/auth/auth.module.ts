@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { InvitationsService } from './invitations.service';
 import { TokenService } from './token.service';
 
 // signup/login, JWT issue/refresh, workspace switch, invitations (docs/03 §3)
@@ -13,6 +14,7 @@ import { TokenService } from './token.service';
   controllers: [AuthController],
   providers: [
     AuthService,
+    InvitationsService,
     TokenService,
     // Global guard order matters: authenticate first, then authorize.
     { provide: APP_GUARD, useClass: JwtAuthGuard },

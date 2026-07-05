@@ -1,12 +1,19 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/guards/current-user.decorator';
 import { Public } from '../../common/guards/public.decorator';
+import { Roles } from '../../common/guards/roles.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshDto, SignupDto, SwitchTenantDto } from './dto/auth.dto';
+import { AcceptInviteDto, InviteDto } from './dto/invite.dto';
+import { InvitationsService } from './invitations.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly invitations: InvitationsService,
+  ) {}
 
   /** FR-1.1 — creates global User + Tenant + OWNER membership. */
   @Public()
@@ -34,5 +41,20 @@ export class AuthController {
   @Post('switch-tenant')
   switchTenant(@CurrentUser() user: AuthUser, @Body() dto: SwitchTenantDto) {
     return this.auth.switchTenant(user.userId, dto.tenantId);
+  }
+
+  /** FR-1.3 — Owner/Admin invites an email with a role. */
+  @Roles(UserRole.ADMIN)
+  @Post('invite')
+  invite(@CurrentUser() user: AuthUser, @Body() dto: InviteDto) {
+    return this.invitations.invite(user, dto.email, dto.role);
+  }
+
+  /** FR-1.3 — existing users skip the password step. */
+  @Public()
+  @HttpCode(200)
+  @Post('accept-invite')
+  acceptInvite(@Body() dto: AcceptInviteDto) {
+    return this.invitations.accept(dto.token, dto.password);
   }
 }

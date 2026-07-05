@@ -10,11 +10,13 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { MailModule } from './common/mail/mail.module';
 import { ContextMiddleware } from './common/context/context.middleware';
 
 @Module({
   imports: [
     PrismaModule,
+    MailModule,
     AuthModule,
     TenantsModule,
     IntegrationsModule,
