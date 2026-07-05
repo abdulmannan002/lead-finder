@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
@@ -9,9 +9,12 @@ import { DeliveryModule } from './modules/delivery/delivery.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { PrismaModule } from './common/prisma/prisma.module';
+import { ContextMiddleware } from './common/context/context.middleware';
 
 @Module({
   imports: [
+    PrismaModule,
     AuthModule,
     TenantsModule,
     IntegrationsModule,
@@ -24,4 +27,11 @@ import { AuditModule } from './modules/audit/audit.module';
     AuditModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Every request runs inside an AsyncLocalStorage scope so the
+    // tenant-scoped Prisma client can resolve the active tenant anywhere
+    // in the call stack. The JWT guard fills the scope after verification.
+    consumer.apply(ContextMiddleware).forRoutes('*');
+  }
+}
