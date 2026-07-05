@@ -39,10 +39,8 @@ function createScopedClient(base: PrismaClient) {
   return guardRaw(base.$extends(tenantScopeExtension));
 }
 
-function buildForType(base: PrismaClient) {
-  return base.$extends(tenantScopeExtension);
-}
-type ExtendedClient = ReturnType<typeof buildForType>;
+const _buildForType = (base: PrismaClient) => base.$extends(tenantScopeExtension);
+type ExtendedClient = ReturnType<typeof _buildForType>;
 
 export type TenantScopedClient = Omit<
   ExtendedClient,
