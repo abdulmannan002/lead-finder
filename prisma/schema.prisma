@@ -123,6 +123,10 @@ model Tenant {
   status         TenantStatus @default(ACTIVE)
   sendingEnabled Boolean      @default(true)
   timezone       String       @default("UTC")
+  // FR-3.5 — leads without a website are discarded during ingestion.
+  // Only the `true` path is implemented in M1: keeping no-website leads
+  // needs a dedupe-key decision first (unique is on websiteDomain).
+  discardNoWebsite Boolean    @default(true)
   createdAt      DateTime     @default(now())
 
   memberships   Membership[]

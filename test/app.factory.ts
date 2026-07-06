@@ -5,10 +5,17 @@ import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter
 import { validationExceptionFactory } from '../src/common/filters/validation-exception.factory';
 import { MailService } from '../src/common/mail/mail.service';
 import { INTEGRATIONS_FETCH } from '../src/modules/integrations/key-validators';
+import { SCRAPE_RUN_QUEUE } from '../src/common/queues/queues.module';
 
 export interface SentMail {
   to: string;
   link: string;
+}
+
+export interface EnqueuedJob {
+  name: string;
+  data: any;
+  opts?: { jobId?: string };
 }
 
 /**
@@ -26,9 +33,14 @@ const fakeProviderFetch = (async (url: any, init: any) => {
   } as Response;
 }) as typeof fetch;
 
-/** Boots the app exactly like main.ts, with mail + provider HTTP stubbed. */
-export async function createApp(): Promise<{ app: INestApplication; outbox: SentMail[] }> {
+/** Boots the app exactly like main.ts, with mail, HTTP and queues stubbed. */
+export async function createApp(): Promise<{
+  app: INestApplication;
+  outbox: SentMail[];
+  queued: EnqueuedJob[];
+}> {
   const outbox: SentMail[] = [];
+  const queued: EnqueuedJob[] = [];
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MailService)
@@ -39,6 +51,12 @@ export async function createApp(): Promise<{ app: INestApplication; outbox: Sent
     })
     .overrideProvider(INTEGRATIONS_FETCH)
     .useValue(fakeProviderFetch)
+    .overrideProvider(SCRAPE_RUN_QUEUE)
+    .useValue({
+      add: async (name: string, data: any, opts?: { jobId?: string }) => {
+        queued.push({ name, data, opts });
+      },
+    })
     .compile();
 
   const app = moduleRef.createNestApplication();
@@ -48,7 +66,7 @@ export async function createApp(): Promise<{ app: INestApplication; outbox: Sent
   );
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, outbox };
+  return { app, outbox, queued };
 }
 
 export function inviteTokenFrom(mail: SentMail): string {
