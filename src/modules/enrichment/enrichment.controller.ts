@@ -10,13 +10,14 @@ import {
 import { AuthUser, CurrentUser } from '../../common/guards/current-user.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { JobQueue } from '../../common/queues/job-queue';
-import { ENRICH_EMAIL_QUEUE } from '../../common/queues/queues.module';
+import { AI_PERSONALIZE_QUEUE, ENRICH_EMAIL_QUEUE } from '../../common/queues/queues.module';
 
 @Controller('leads')
 export class EnrichmentController {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ENRICH_EMAIL_QUEUE) private readonly enrichQueue: JobQueue,
+    @Inject(AI_PERSONALIZE_QUEUE) private readonly personalizeQueue: JobQueue,
   ) {}
 
   /** docs/04 — re-run the email finder for one lead. */
@@ -28,6 +29,20 @@ export class EnrichmentController {
     // No jobId: manual re-runs must always enqueue (the processor is
     // idempotent), unlike batch jobs which dedupe on enrich:<leadId>.
     await this.enrichQueue.add('enrich', { tenantId: user.tenantId, leadId: id });
+    return { queued: true };
+  }
+
+  /** docs/04 — re-run the AI opener; force overwrites the existing line (FR-5.3). */
+  @HttpCode(202)
+  @Post(':id/personalize')
+  async personalize(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    const lead = await this.prisma.client.lead.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Lead not found' });
+    await this.personalizeQueue.add('personalize', {
+      tenantId: user.tenantId,
+      leadId: id,
+      force: true,
+    });
     return { queued: true };
   }
 }
