@@ -7,6 +7,7 @@ import { MailService } from '../src/common/mail/mail.service';
 import { INTEGRATIONS_FETCH } from '../src/modules/integrations/key-validators';
 import { SOURCING_FETCH } from '../src/modules/sourcing/apify.client';
 import { ENRICHMENT_FETCH } from '../src/modules/enrichment/site-scraper';
+import { ANTHROPIC_CLIENT_FACTORY } from '../src/modules/enrichment/anthropic.client';
 import { InMemoryQuotaCounter, QUOTA_COUNTER } from '../src/common/counters/quota-counter';
 import {
   AI_PERSONALIZE_QUEUE,
@@ -70,6 +71,13 @@ export interface FakeWeb {
   hunterEmails: { value: string; confidence: number; type: string }[];
 }
 
+export interface FakeAnthropic {
+  /** The model's next reply text (e.g. an opener line or 'GENERIC'). */
+  reply: string;
+  /** Every call made: the api key + prompt, for assertions. */
+  calls: { apiKey: string; prompt: string }[];
+}
+
 /** Lead-site + Hunter stub for the enrichment pipeline. */
 function fakeEnrichmentFetch(web: FakeWeb): typeof fetch {
   return (async (url: any) => {
@@ -101,6 +109,7 @@ export async function createApp(): Promise<{
   personalizeQueued: EnqueuedJob[];
   apifyDataset: { items: unknown[]; failRun?: boolean };
   fakeWeb: FakeWeb;
+  fakeAnthropic: FakeAnthropic;
 }> {
   const outbox: SentMail[] = [];
   const queued: EnqueuedJob[] = [];
@@ -108,6 +117,7 @@ export async function createApp(): Promise<{
   const personalizeQueued: EnqueuedJob[] = [];
   const apifyDataset: { items: unknown[]; failRun?: boolean } = { items: [] };
   const fakeWeb: FakeWeb = { pages: {}, hunterEmails: [] };
+  const fakeAnthropic: FakeAnthropic = { reply: 'GENERIC', calls: [] };
 
   const record = (sink: EnqueuedJob[]) => ({
     add: async (name: string, data: any, opts?: { jobId?: string }) => {
@@ -136,6 +146,18 @@ export async function createApp(): Promise<{
     .useValue(fakeEnrichmentFetch(fakeWeb))
     .overrideProvider(QUOTA_COUNTER)
     .useValue(new InMemoryQuotaCounter())
+    .overrideProvider(ANTHROPIC_CLIENT_FACTORY)
+    .useValue((apiKey: string) => ({
+      messages: {
+        create: async (params: { messages: { content: string }[] }) => {
+          fakeAnthropic.calls.push({ apiKey, prompt: params.messages[0].content });
+          return {
+            content: [{ type: 'text', text: fakeAnthropic.reply }],
+            usage: { input_tokens: 420, output_tokens: 17 },
+          };
+        },
+      },
+    }))
     .compile();
 
   const app = moduleRef.createNestApplication();
@@ -145,7 +167,16 @@ export async function createApp(): Promise<{
   );
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, outbox, queued, enrichQueued, personalizeQueued, apifyDataset, fakeWeb };
+  return {
+    app,
+    outbox,
+    queued,
+    enrichQueued,
+    personalizeQueued,
+    apifyDataset,
+    fakeWeb,
+    fakeAnthropic,
+  };
 }
 
 export function inviteTokenFrom(mail: SentMail): string {

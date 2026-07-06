@@ -8,6 +8,7 @@ import { QUEUE_NAMES } from './common/queues/queue-names';
 import type { TenantJobData } from './common/queues/job-queue';
 import { ScrapeRunProcessor } from './modules/sourcing/scrape-run.processor';
 import { EnrichEmailProcessor } from './modules/enrichment/enrich-email.processor';
+import { PersonalizeProcessor } from './modules/enrichment/personalize.processor';
 import { BullJobQueue } from './common/queues/job-queue';
 
 interface JobProcessor {
@@ -21,6 +22,7 @@ interface JobProcessor {
 const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
   { queue: QUEUE_NAMES.SCRAPE_RUN, provider: ScrapeRunProcessor },
   { queue: QUEUE_NAMES.ENRICH_EMAIL, provider: EnrichEmailProcessor },
+  { queue: QUEUE_NAMES.AI_PERSONALIZE, provider: PersonalizeProcessor },
 ];
 
 /** docs/03 §4 — enrich.email batch cron: sweep NEW-without-email leads. */
