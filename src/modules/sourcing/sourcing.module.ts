@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { ApifyClient, SOURCING_FETCH } from './apify.client';
+import { CsvImportService } from './csv-import.service';
 import { LeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
 import { QueriesService } from './queries.service';
@@ -14,6 +15,7 @@ import { SourcingController } from './sourcing.controller';
   providers: [
     QueriesService,
     LeadsService,
+    CsvImportService,
     ApifyClient,
     ScrapeRunProcessor,
     // Real fetch in production; tests override this token with a stub.

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,13 +8,39 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CsvImportService, CsvMapping } from './csv-import.service';
 import { BulkLeadsDto, ListLeadsDto, UpdateLeadDto } from './dto/leads.dto';
 import { LeadsService } from './leads.service';
 
 @Controller('leads')
 export class LeadsController {
-  constructor(private readonly leads: LeadsService) {}
+  constructor(
+    private readonly leads: LeadsService,
+    private readonly csvImport: CsvImportService,
+  ) {}
+
+  /** FR-3.6 — multipart CSV + column mapping (JSON in the `mapping` field). */
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  import(@UploadedFile() file: Express.Multer.File | undefined, @Body('mapping') mapping?: string) {
+    if (!file) {
+      throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'file is required' });
+    }
+    let parsed: CsvMapping;
+    try {
+      parsed = JSON.parse(mapping ?? '');
+    } catch {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: 'mapping must be a JSON object ({ company, website, email?, phone?, city?, category? })',
+      });
+    }
+    return this.csvImport.import(file.buffer, parsed);
+  }
 
   @Get()
   list(@Query() dto: ListLeadsDto) {
