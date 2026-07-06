@@ -12,6 +12,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { MailModule } from './common/mail/mail.module';
 import { CryptoModule } from './common/crypto/crypto.module';
+import { QueuesModule } from './common/queues/queues.module';
 import { ContextMiddleware } from './common/context/context.middleware';
 
 @Module({
@@ -19,6 +20,7 @@ import { ContextMiddleware } from './common/context/context.middleware';
     PrismaModule,
     MailModule,
     CryptoModule,
+    QueuesModule,
     AuthModule,
     TenantsModule,
     IntegrationsModule,
