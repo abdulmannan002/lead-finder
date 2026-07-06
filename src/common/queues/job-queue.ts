@@ -7,10 +7,17 @@ import { redisConnectionOptions } from './redis';
  */
 export interface TenantJobData {
   tenantId: string;
+  [key: string]: unknown;
+}
+
+export interface JobOptions {
+  jobId?: string;
+  /** BullMQ repeatable schedule (used for cron-style sweeps). */
+  repeat?: { every: number };
 }
 
 export interface JobQueue<T extends TenantJobData = TenantJobData> {
-  add(name: string, data: T, opts?: { jobId?: string }): Promise<void>;
+  add(name: string, data: T, opts?: JobOptions): Promise<void>;
 }
 
 /** docs/03 §4 failure policy: 3 attempts, exponential backoff. */
@@ -31,7 +38,7 @@ export class BullJobQueue<T extends TenantJobData = TenantJobData> implements Jo
 
   constructor(private readonly name: string) {}
 
-  async add(jobName: string, data: T, opts?: { jobId?: string }): Promise<void> {
+  async add(jobName: string, data: T, opts?: JobOptions): Promise<void> {
     this.queue ??= new Queue(this.name, {
       connection: redisConnectionOptions(),
       defaultJobOptions: DEFAULT_JOB_OPTIONS,

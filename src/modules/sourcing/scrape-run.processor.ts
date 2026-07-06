@@ -1,7 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { EmailSource, IntegrationKind, Prisma, QueryStatus, RunStatus } from '@prisma/client';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { EmailSource, IntegrationKind, LeadStatus, Prisma, QueryStatus, RunStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TenantCreateData } from '../../common/prisma/tenant-scope';
+import { JobQueue } from '../../common/queues/job-queue';
+import { ENRICH_EMAIL_QUEUE } from '../../common/queues/queues.module';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { ApifyClient, DEFAULT_ACTOR_ID } from './apify.client';
 import { normalizeItem } from './normalize';
@@ -21,6 +23,7 @@ export class ScrapeRunProcessor {
     private readonly prisma: PrismaService,
     private readonly integrations: IntegrationsService,
     private readonly apify: ApifyClient,
+    @Inject(ENRICH_EMAIL_QUEUE) private readonly enrichQueue: JobQueue,
   ) {}
 
   async process(data: ScrapeRunJobData): Promise<void> {
@@ -93,6 +96,20 @@ export class ScrapeRunProcessor {
         where: { id: run.queryId },
         data: { status: QueryStatus.DONE },
       });
+
+      // M2 chain: freshly landed NEW leads go straight to the email finder
+      // (docs/03 §4: enrich.email fires on lead NEW without email).
+      const fresh = await this.prisma.client.lead.findMany({
+        where: { scrapeRunId: run.id, status: LeadStatus.NEW },
+        select: { id: true },
+      });
+      for (const lead of fresh) {
+        await this.enrichQueue.add(
+          'enrich',
+          { tenantId: data.tenantId, leadId: lead.id },
+          { jobId: `enrich:${lead.id}` },
+        );
+      }
       this.logger.log(
         `run ${run.id}: ${created} new, ${usable.length - created} duplicates, ${discarded} without website`,
       );

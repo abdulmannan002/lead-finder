@@ -85,6 +85,13 @@ enum EmailSource {
   MANUAL
 }
 
+/// FR-4.4 confidence flag (M2 ruling): HIGH = personal-name address found
+/// on the lead's own site, or Hunter confidence >= 80. LOW otherwise.
+enum EmailConfidence {
+  HIGH
+  LOW
+}
+
 enum CampaignStatus {
   DRAFT
   ACTIVE
@@ -293,8 +300,9 @@ model Lead {
   scrapeRun     ScrapeRun?   @relation(fields: [scrapeRunId], references: [id], onDelete: SetNull)
   company       String
   websiteDomain String
-  email         String?
-  emailSource   EmailSource?
+  email           String?
+  emailSource     EmailSource?
+  emailConfidence EmailConfidence?
   phone         String?
   city          String?
   category      String?

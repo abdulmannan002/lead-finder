@@ -7,6 +7,8 @@ import { redisConnectionOptions } from './common/queues/redis';
 import { QUEUE_NAMES } from './common/queues/queue-names';
 import type { TenantJobData } from './common/queues/job-queue';
 import { ScrapeRunProcessor } from './modules/sourcing/scrape-run.processor';
+import { EnrichEmailProcessor } from './modules/enrichment/enrich-email.processor';
+import { BullJobQueue } from './common/queues/job-queue';
 
 interface JobProcessor {
   process(data: TenantJobData): Promise<void>;
@@ -18,7 +20,18 @@ interface JobProcessor {
  */
 const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
   { queue: QUEUE_NAMES.SCRAPE_RUN, provider: ScrapeRunProcessor },
+  { queue: QUEUE_NAMES.ENRICH_EMAIL, provider: EnrichEmailProcessor },
 ];
+
+/** docs/03 §4 — enrich.email batch cron: sweep NEW-without-email leads. */
+async function registerRepeatables() {
+  const enrich = new BullJobQueue(QUEUE_NAMES.ENRICH_EMAIL);
+  await enrich.add(
+    'batch',
+    { tenantId: '', batch: true },
+    { jobId: 'enrich-batch-scan', repeat: { every: 10 * 60 * 1000 } },
+  );
+}
 
 async function bootstrap() {
   const logger = new Logger('Worker');
@@ -42,6 +55,8 @@ async function bootstrap() {
     logger.log(`Listening on ${queue}`);
     return worker;
   });
+
+  await registerRepeatables();
 
   const shutdown = async () => {
     await Promise.all(workers.map((w) => w.close()));
