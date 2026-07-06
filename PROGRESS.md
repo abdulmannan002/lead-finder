@@ -1,23 +1,29 @@
 # Progress
 
-## Milestone M0 — Skeleton: COMPLETE ✅
+## Milestone M1 — Leads in: CODE COMPLETE ✅ (manual exit check pending)
 
-### Done
-- Specs finalized in `docs/` (membership model: global User + per-tenant Membership).
-- Repo foundation: docker-compose (postgres 16, redis 7, mailhog), `.env.example`, strict TS/eslint/jest tooling.
-- Full Prisma schema: 16 models, 13 enums, all constraints from docs/02, initial migration applied; enrollment partial indexes (sender hot query + one-active-per-lead) via raw migration.
-- NestJS scaffold: all 10 docs/03 §3 module folders, docs/04 error envelope filter, validation pipe.
-- **Tenant isolation infrastructure (FR-1.4)**: AsyncLocalStorage request context + Prisma extension that scopes every model with a `tenantId` field (derived from DMMF), stamps creates, fails closed without context, blocks raw SQL; `SystemPrismaService` is the single greppable bypass. 21 unit tests.
-- Auth (FR-1.1–1.3, FR-1.6): signup (User+Tenant+OWNER membership), login, DB-backed rotating refresh tokens with reuse detection, switch-tenant, POST /tenants, GET /me/tenants, invite + accept-invite (existing users skip the password step), argon2id, role guards.
-- Tenants: GET/PATCH /tenant (incl. sendingEnabled kill switch), member list/role-change/remove with last-Owner protection.
-- Next.js shell: login/signup/accept-invite, dashboard layout with sidebar + tenant switcher, placeholder pages (Leads, Campaigns, Replies, Metrics, Settings).
-- Tests: 38 unit + 17 e2e. E2e covers auth happy paths, refresh rotation/reuse, invites, and the **T-1 foundation isolation suite** incl. B.5 (active-tenant scoping beats membership list). M0 exit criteria verified.
+### Done in M1
+- **Secrets vault**: AES-256-GCM (12-byte IV + auth tag), versioned master key for rotation, last4-only exposure. 7 unit tests.
+- **Integrations**: PUT/GET/DELETE /integrations/:kind with validate-on-save test calls (Apify, Hunter, Anthropic, Telegram+chatId); keys write-only after creation; `getKey()` for other modules.
+- **Queue infra**: BullMQ with docs/03 §4 queue names; lazily-connected producer behind a DI token; worker entry wraps every job in `runWithContext(tenantId)`; 3-attempt exponential backoff.
+- **Sourcing**: queries CRUD + manual run trigger (one active run per query, Idempotency-Key = jobId); Apify client (default actor `compass~crawler-google-places`, config-overridable); normalizer (domain dedupe key); scrape.run processor with createMany-skipDuplicates dedupe and run stats. **T-2 passing** (re-run → 0 new, duplicates counted).
+- **Leads API**: list with filters (status/city/category/q/hasEmail) + pagination, detail, inline edit; DO_NOT_CONTACT permanence (409 SUPPRESSED); bulk archive/do_not_contact with skip reasons.
+- **CSV import**: multipart + column mapping through the same normalize/dedupe path; named errors (UNKNOWN_COLUMN etc.).
+- **Web**: Settings integrations manager; Leads page with query panel, CSV import, filterable lead table with inline editing.
+- **Tests**: 68 unit + 45 e2e (auth, isolation T-1+B.5, integrations, sourcing, ingest T-2, leads, CSV) — all green.
 
-### Next (M1 — awaiting task-breakdown approval)
-- Integrations vault (Apify/Hunter/Anthropic keys, AES-256-GCM).
-- Scrape queries + runs, Apify client, lead ingestion + dedupe, CSV import, lead table UI.
+### M1 exit criterion — remaining manual step
+"Real Apify run lands ≥20 deduped leads visible in UI" needs a real
+Apify key: `docker compose up -d` (or any Postgres/Redis), `npm run
+start:dev` + `npm run start:worker:dev` + `cd web && npm run dev`, add
+the Apify key in Settings, create a query, hit Run.
+
+### Next (M2 — awaiting task-breakdown approval)
+- Site-scrape email finder, Hunter fallback (per-tenant quota counter), AI personalizer, editable openers.
 
 ### Known issues / notes
-- `Campaign.emailAccountId` is nullable so DRAFT campaigns can exist before a sending account is connected; activation must validate it (flagged during M0, confirm in M3).
-- E2e uses testcontainers by default; on machines without Docker set `TEST_DATABASE_URL` to any Postgres 16 (this dev machine has no Docker — an embedded PG 16 was used; the suite migrates + wipes the DB it is given).
-- Access tokens don't re-check tenant status per request (15 min max staleness); revisit if suspension must be instant.
+- `Campaign.emailAccountId` nullable for DRAFT campaigns — validate on activation (M3).
+- FR-3.5 "keep no-website leads" path deferred (docs/02 §3 note) — needs a dedupe-key decision.
+- `bulk action=enroll` returns validation error until M3 (campaigns).
+- E2e: testcontainers by default; `TEST_DATABASE_URL` override used on this Docker-less machine. Real Redis-backed queue e2e runs where Docker exists; locally the queue producer is stubbed and the processor is exercised inline.
+- Access tokens don't re-check tenant status per request (15 min max staleness).

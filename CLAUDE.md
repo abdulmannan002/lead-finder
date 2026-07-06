@@ -68,6 +68,7 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M0 COMPLETE (exit criteria verified: two tenants sign up,
-T-1 isolation suite passes). M1 not started — propose a task breakdown
-and wait for approval before beginning.
+Milestone: M1 code complete (T-2 dedupe passing; 68 unit + 45 e2e
+tests green). Manual exit check pending: real Apify run → ≥20 deduped
+leads in the UI (needs the tenant's real Apify key). M2 not started —
+propose a task breakdown and wait for approval before beginning.
