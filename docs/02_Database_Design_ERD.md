@@ -34,6 +34,7 @@ erDiagram
     enum status
     bool sendingEnabled
     string timezone
+    bool discardNoWebsite
     timestamp createdAt
   }
   USER {
@@ -214,6 +215,7 @@ erDiagram
 - `ENROLLMENT`: UNIQUE (leadId, campaignId); index (tenantId); partial index on (status, nextDueAt) WHERE status IN ('QUEUED','ACTIVE') — this is the sender's hot query.
 - `MESSAGE`: index on providerMsgId (reply matching); index on (enrollmentId, sentAt); index (tenantId).
 - `DAILY_METRIC`: UNIQUE (tenantId, day) — upsert target.
+- `TENANT.discardNoWebsite` (FR-3.5): only the `true` path is implemented in v1 M1 — keeping no-website leads requires a dedupe-key decision (LEAD's unique is on websiteDomain) and is deferred.
 - One active enrollment per lead: partial UNIQUE index on ENROLLMENT(leadId) WHERE status IN ('QUEUED','ACTIVE').
 - All FKs ON DELETE: tenant-owned rows CASCADE from TENANT (soft-delete first, purge job later); MESSAGE→ENROLLMENT RESTRICT.
 
