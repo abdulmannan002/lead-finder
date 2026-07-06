@@ -5,6 +5,7 @@ import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter
 import { validationExceptionFactory } from '../src/common/filters/validation-exception.factory';
 import { MailService } from '../src/common/mail/mail.service';
 import { INTEGRATIONS_FETCH } from '../src/modules/integrations/key-validators';
+import { SOURCING_FETCH } from '../src/modules/sourcing/apify.client';
 import { SCRAPE_RUN_QUEUE } from '../src/common/queues/queues.module';
 
 export interface SentMail {
@@ -33,14 +34,39 @@ const fakeProviderFetch = (async (url: any, init: any) => {
   } as Response;
 }) as typeof fetch;
 
+/**
+ * Fake Apify: start-run → poll (SUCCEEDED immediately) → dataset items
+ * from the mutable holder the test controls.
+ */
+function fakeApifyFetch(dataset: { items: unknown[]; failRun?: boolean }): typeof fetch {
+  return (async (url: any) => {
+    const target = String(url);
+    let body: unknown;
+    if (target.includes('/acts/')) {
+      body = { data: { id: 'fake-apify-run', defaultDatasetId: 'fake-dataset' } };
+    } else if (target.includes('/actor-runs/')) {
+      body = {
+        data: { status: dataset.failRun ? 'FAILED' : 'SUCCEEDED', defaultDatasetId: 'fake-dataset' },
+      };
+    } else if (target.includes('/datasets/')) {
+      body = dataset.items;
+    } else {
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    }
+    return { ok: true, status: 200, json: async () => body } as Response;
+  }) as typeof fetch;
+}
+
 /** Boots the app exactly like main.ts, with mail, HTTP and queues stubbed. */
 export async function createApp(): Promise<{
   app: INestApplication;
   outbox: SentMail[];
   queued: EnqueuedJob[];
+  apifyDataset: { items: unknown[]; failRun?: boolean };
 }> {
   const outbox: SentMail[] = [];
   const queued: EnqueuedJob[] = [];
+  const apifyDataset: { items: unknown[]; failRun?: boolean } = { items: [] };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MailService)
@@ -57,6 +83,8 @@ export async function createApp(): Promise<{
         queued.push({ name, data, opts });
       },
     })
+    .overrideProvider(SOURCING_FETCH)
+    .useValue(fakeApifyFetch(apifyDataset))
     .compile();
 
   const app = moduleRef.createNestApplication();
@@ -66,7 +94,7 @@ export async function createApp(): Promise<{
   );
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, outbox, queued };
+  return { app, outbox, queued, apifyDataset };
 }
 
 export function inviteTokenFrom(mail: SentMail): string {

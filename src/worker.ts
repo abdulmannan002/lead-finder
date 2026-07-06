@@ -4,7 +4,9 @@ import { Job, Worker } from 'bullmq';
 import { AppModule } from './app.module';
 import { runWithContext } from './common/context/request-context';
 import { redisConnectionOptions } from './common/queues/redis';
+import { QUEUE_NAMES } from './common/queues/queue-names';
 import type { TenantJobData } from './common/queues/job-queue';
+import { ScrapeRunProcessor } from './modules/sourcing/scrape-run.processor';
 
 interface JobProcessor {
   process(data: TenantJobData): Promise<void>;
@@ -15,7 +17,7 @@ interface JobProcessor {
  * from docs/03 §4 via each processor module.
  */
 const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
-  // M1: scrape.run is registered by feat/sourcing-ingest.
+  { queue: QUEUE_NAMES.SCRAPE_RUN, provider: ScrapeRunProcessor },
 ];
 
 async function bootstrap() {
