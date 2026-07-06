@@ -11,12 +11,14 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { MailModule } from './common/mail/mail.module';
+import { CryptoModule } from './common/crypto/crypto.module';
 import { ContextMiddleware } from './common/context/context.middleware';
 
 @Module({
   imports: [
     PrismaModule,
     MailModule,
+    CryptoModule,
     AuthModule,
     TenantsModule,
     IntegrationsModule,
