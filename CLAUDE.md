@@ -68,7 +68,8 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M1 code complete (T-2 dedupe passing; 68 unit + 45 e2e
-tests green). Manual exit check pending: real Apify run → ≥20 deduped
-leads in the UI (needs the tenant's real Apify key). M2 not started —
-propose a task breakdown and wait for approval before beginning.
+Milestone: M2 COMPLETE (exit criterion verified in e2e: 20 NEW leads →
+75% READY with emails + openers; 95 unit + 64 e2e green). M1's manual
+exit check (real Apify run visible in UI) still pending a real key.
+M3 not started — propose a task breakdown and wait for approval before
+beginning.

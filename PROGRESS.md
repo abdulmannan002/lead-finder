@@ -1,29 +1,22 @@
 # Progress
 
-## Milestone M1 — Leads in: CODE COMPLETE ✅ (manual exit check pending)
+## Milestone M2 — Enrichment: COMPLETE ✅
 
-### Done in M1
-- **Secrets vault**: AES-256-GCM (12-byte IV + auth tag), versioned master key for rotation, last4-only exposure. 7 unit tests.
-- **Integrations**: PUT/GET/DELETE /integrations/:kind with validate-on-save test calls (Apify, Hunter, Anthropic, Telegram+chatId); keys write-only after creation; `getKey()` for other modules.
-- **Queue infra**: BullMQ with docs/03 §4 queue names; lazily-connected producer behind a DI token; worker entry wraps every job in `runWithContext(tenantId)`; 3-attempt exponential backoff.
-- **Sourcing**: queries CRUD + manual run trigger (one active run per query, Idempotency-Key = jobId); Apify client (default actor `compass~crawler-google-places`, config-overridable); normalizer (domain dedupe key); scrape.run processor with createMany-skipDuplicates dedupe and run stats. **T-2 passing** (re-run → 0 new, duplicates counted).
-- **Leads API**: list with filters (status/city/category/q/hasEmail) + pagination, detail, inline edit; DO_NOT_CONTACT permanence (409 SUPPRESSED); bulk archive/do_not_contact with skip reasons.
-- **CSV import**: multipart + column mapping through the same normalize/dedupe path; named errors (UNKNOWN_COLUMN etc.).
-- **Web**: Settings integrations manager; Leads page with query panel, CSV import, filterable lead table with inline editing.
-- **Tests**: 68 unit + 45 e2e (auth, isolation T-1+B.5, integrations, sourcing, ingest T-2, leads, CSV) — all green.
+### Done in M2
+- **Email finder (FR-4.x)**: SiteScraper (home + /contact + /about, timeout + size caps), regex/mailto extraction with junk filtering, FR-4.3 selection (personal-name > sales > operations > info, same-domain preferred), `Lead.emailConfidence` HIGH/LOW per ruling.
+- **Hunter fallback (FR-4.2)**: tenant key from the vault, per-tenant **monthly Redis quota** (`config.monthlyQuota`, default 25) behind an injectable counter; refusals don't burn quota.
+- **enrich.email processor**: NEW→ENRICHING→READY/UNREACHABLE (FR-4.5); transient errors revert to NEW for the 10-min batch sweep; already-emailed leads promoted straight to READY; chained from scrape ingestion + `POST /leads/:id/enrich`.
+- **AI personalizer (FR-5.x)**: claude-haiku (`claude-haiku-4-5`) via the tenant's Anthropic key (official SDK); ≤25-word opener referencing the actual business or literal GENERIC → city/category template fallback (FR-5.2); skip-if-exists idempotency; `POST /leads/:id/personalize` forces regenerate; openers user-editable (FR-5.3); **token usage logged per tenant** to the activity log (FR-5.4 ruling).
+- **Web**: email source/confidence badges, editable opener column, per-row "Find email" / "AI opener" actions.
+- **Acceptance**: M2 exit criterion verified in e2e — 20 NEW leads through the full pipeline → 15 READY (75%) with emails + openers, 5 UNREACHABLE, 15 token-usage logs.
+- **Tests**: 95 unit + 64 e2e across 10 suites — all green.
 
-### M1 exit criterion — remaining manual step
-"Real Apify run lands ≥20 deduped leads visible in UI" needs a real
-Apify key: `docker compose up -d` (or any Postgres/Redis), `npm run
-start:dev` + `npm run start:worker:dev` + `cd web && npm run dev`, add
-the Apify key in Settings, create a query, hit Run.
-
-### Next (M2 — awaiting task-breakdown approval)
-- Site-scrape email finder, Hunter fallback (per-tenant quota counter), AI personalizer, editable openers.
+### Next (M3 — "the risky one" — awaiting task-breakdown approval)
+- Email account connect (SMTP first, Gmail OAuth second), campaign + steps builder UI, enrollment, send.plan/send.dispatch with caps/jitter/threading, test-send. T-3 (no-double-send), T-4 (caps), T-5 (threading), T-12 (template validation).
 
 ### Known issues / notes
 - `Campaign.emailAccountId` nullable for DRAFT campaigns — validate on activation (M3).
-- FR-3.5 "keep no-website leads" path deferred (docs/02 §3 note) — needs a dedupe-key decision.
-- `bulk action=enroll` returns validation error until M3 (campaigns).
-- E2e: testcontainers by default; `TEST_DATABASE_URL` override used on this Docker-less machine. Real Redis-backed queue e2e runs where Docker exists; locally the queue producer is stubbed and the processor is exercised inline.
-- Access tokens don't re-check tenant status per request (15 min max staleness).
+- FR-3.5 "keep no-website leads" path deferred (docs/02 §3 note).
+- `bulk action=enroll` arrives with campaigns (M3).
+- Local dev has no Docker: e2e runs via `TEST_DATABASE_URL` (embedded PG 16); queue producers stubbed in tests, processors driven inline exactly as the worker would.
+- Personalizer reads the tenant Anthropic integration directly (scoped) and skips quietly when absent — leads stay READY without openers until a key is added.
