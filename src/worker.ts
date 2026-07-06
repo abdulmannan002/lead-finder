@@ -1,0 +1,53 @@
+import { INestApplicationContext, Logger, Type } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { Job, Worker } from 'bullmq';
+import { AppModule } from './app.module';
+import { runWithContext } from './common/context/request-context';
+import { redisConnectionOptions } from './common/queues/redis';
+import type { TenantJobData } from './common/queues/job-queue';
+
+interface JobProcessor {
+  process(data: TenantJobData): Promise<void>;
+}
+
+/**
+ * Queue → processor wiring. New milestones append here; queue names come
+ * from docs/03 §4 via each processor module.
+ */
+const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
+  // M1: scrape.run is registered by feat/sourcing-ingest.
+];
+
+async function bootstrap() {
+  const logger = new Logger('Worker');
+  const app: INestApplicationContext = await NestFactory.createApplicationContext(AppModule, {
+    logger: ['log', 'warn', 'error'],
+  });
+
+  const workers = PROCESSORS.map(({ queue, provider }) => {
+    const processor = app.get(provider);
+    const worker = new Worker(
+      queue,
+      // Rebuild the tenant context from the payload so the tenant-scoped
+      // Prisma client behaves in jobs exactly as it does in requests.
+      (job: Job<TenantJobData>) =>
+        runWithContext({ tenantId: job.data.tenantId }, () => processor.process(job.data)),
+      { connection: redisConnectionOptions(), concurrency: 5 },
+    );
+    worker.on('failed', (job, err) =>
+      logger.error(`${queue}#${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`),
+    );
+    logger.log(`Listening on ${queue}`);
+    return worker;
+  });
+
+  const shutdown = async () => {
+    await Promise.all(workers.map((w) => w.close()));
+    await app.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
+}
+
+void bootstrap();
