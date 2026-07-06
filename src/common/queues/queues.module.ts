@@ -2,14 +2,21 @@ import { Global, Module } from '@nestjs/common';
 import { BullJobQueue } from './job-queue';
 import { QUEUE_NAMES } from './queue-names';
 
-/** DI token for the scrape.run producer (e2e overrides it with a stub). */
+/** DI tokens for producers (e2e overrides them with stubs). */
 export const SCRAPE_RUN_QUEUE = 'QUEUE:scrape.run';
+export const ENRICH_EMAIL_QUEUE = 'QUEUE:enrich.email';
+export const AI_PERSONALIZE_QUEUE = 'QUEUE:ai.personalize';
 
 @Global()
 @Module({
   providers: [
     { provide: SCRAPE_RUN_QUEUE, useFactory: () => new BullJobQueue(QUEUE_NAMES.SCRAPE_RUN) },
+    { provide: ENRICH_EMAIL_QUEUE, useFactory: () => new BullJobQueue(QUEUE_NAMES.ENRICH_EMAIL) },
+    {
+      provide: AI_PERSONALIZE_QUEUE,
+      useFactory: () => new BullJobQueue(QUEUE_NAMES.AI_PERSONALIZE),
+    },
   ],
-  exports: [SCRAPE_RUN_QUEUE],
+  exports: [SCRAPE_RUN_QUEUE, ENRICH_EMAIL_QUEUE, AI_PERSONALIZE_QUEUE],
 })
 export class QueuesModule {}
