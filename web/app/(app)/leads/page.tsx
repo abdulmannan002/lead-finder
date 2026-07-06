@@ -24,6 +24,9 @@ interface LeadRow {
   company: string;
   websiteDomain: string;
   email: string | null;
+  emailSource: string | null;
+  emailConfidence: string | null;
+  firstLine: string | null;
   phone: string | null;
   city: string | null;
   category: string | null;
@@ -244,6 +247,14 @@ export default function LeadsPage() {
     }
   }
 
+  async function runAction(id: string, action: 'enrich' | 'personalize') {
+    try {
+      await api(`/leads/${id}/${action}`, { method: 'POST' });
+    } catch {
+      /* queued failures surface on refresh */
+    }
+  }
+
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -291,19 +302,46 @@ export default function LeadsPage() {
                   <th className="py-2 pr-4">Domain</th>
                   <th className="py-2 pr-4">Email</th>
                   <th className="py-2 pr-4">City</th>
-                  <th className="py-2 pr-4">Category</th>
                   <th className="py-2 pr-4">Status</th>
-                  <th className="py-2">Notes</th>
+                  <th className="py-2 pr-4">Opener</th>
+                  <th className="py-2 pr-4">Notes</th>
+                  <th className="py-2" />
                 </tr>
               </thead>
               <tbody>
                 {leads.map((lead) => (
-                  <tr key={lead.id} className="border-b last:border-0">
+                  <tr key={lead.id} className="border-b last:border-0 align-top">
                     <td className="py-2 pr-4 font-medium">{lead.company}</td>
                     <td className="py-2 pr-4 text-muted-foreground">{lead.websiteDomain}</td>
-                    <td className="py-2 pr-4">{lead.email ?? '—'}</td>
+                    <td className="py-2 pr-4">
+                      {lead.email ? (
+                        <div>
+                          <div>{lead.email}</div>
+                          <div className="mt-0.5 flex gap-1">
+                            {lead.emailSource && (
+                              <span className="rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">
+                                {lead.emailSource.toLowerCase()}
+                              </span>
+                            )}
+                            {lead.emailConfidence && (
+                              <span
+                                className={
+                                  'rounded px-1 text-[10px] uppercase ' +
+                                  (lead.emailConfidence === 'HIGH'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'bg-muted text-muted-foreground')
+                                }
+                              >
+                                {lead.emailConfidence.toLowerCase()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="py-2 pr-4">{lead.city ?? '—'}</td>
-                    <td className="py-2 pr-4">{lead.category ?? '—'}</td>
                     <td className="py-2 pr-4">
                       <select
                         className="rounded-md border bg-transparent px-1 py-0.5 text-xs"
@@ -318,9 +356,21 @@ export default function LeadsPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="py-2">
+                    <td className="py-2 pr-4">
                       <input
-                        className="w-full rounded-md border bg-transparent px-2 py-1 text-xs"
+                        className="w-56 rounded-md border bg-transparent px-2 py-1 text-xs"
+                        defaultValue={lead.firstLine ?? ''}
+                        placeholder="AI opener — editable…"
+                        onBlur={(e) => {
+                          if (e.target.value !== (lead.firstLine ?? '')) {
+                            void patchLead(lead.id, { firstLine: e.target.value });
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="py-2 pr-4">
+                      <input
+                        className="w-36 rounded-md border bg-transparent px-2 py-1 text-xs"
                         defaultValue={lead.notes ?? ''}
                         placeholder="notes…"
                         onBlur={(e) => {
@@ -330,11 +380,33 @@ export default function LeadsPage() {
                         }}
                       />
                     </td>
+                    <td className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          title="Re-run the email finder"
+                          disabled={lead.status === 'DO_NOT_CONTACT'}
+                          onClick={() => void runAction(lead.id, 'enrich')}
+                        >
+                          Find email
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          title="Regenerate the AI opener"
+                          disabled={!lead.email || lead.status === 'DO_NOT_CONTACT'}
+                          onClick={() => void runAction(lead.id, 'personalize')}
+                        >
+                          AI opener
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {leads.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
                       No leads yet — run a scrape query or import a CSV.
                     </td>
                   </tr>
