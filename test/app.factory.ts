@@ -8,6 +8,7 @@ import { INTEGRATIONS_FETCH } from '../src/modules/integrations/key-validators';
 import { SOURCING_FETCH } from '../src/modules/sourcing/apify.client';
 import { ENRICHMENT_FETCH } from '../src/modules/enrichment/site-scraper';
 import { ANTHROPIC_CLIENT_FACTORY } from '../src/modules/enrichment/anthropic.client';
+import { OutboundMail, SmtpCredentials, SMTP_TRANSPORT_FACTORY } from '../src/modules/integrations/smtp';
 import { InMemoryQuotaCounter, QUOTA_COUNTER } from '../src/common/counters/quota-counter';
 import {
   AI_PERSONALIZE_QUEUE,
@@ -78,6 +79,19 @@ export interface FakeAnthropic {
   calls: { apiKey: string; prompt: string }[];
 }
 
+export interface SentSmtp {
+  creds: SmtpCredentials;
+  mail: OutboundMail;
+  messageId: string;
+}
+
+export interface FakeSmtp {
+  /** Every mail "delivered" through the fake transport, in order. */
+  sent: SentSmtp[];
+  /** When set, the next sendMail rejects with this error (then clears). */
+  failNextSendWith?: Error & { responseCode?: number };
+}
+
 /** Lead-site + Hunter stub for the enrichment pipeline. */
 function fakeEnrichmentFetch(web: FakeWeb): typeof fetch {
   return (async (url: any) => {
@@ -110,6 +124,7 @@ export async function createApp(): Promise<{
   apifyDataset: { items: unknown[]; failRun?: boolean };
   fakeWeb: FakeWeb;
   fakeAnthropic: FakeAnthropic;
+  fakeSmtp: FakeSmtp;
 }> {
   const outbox: SentMail[] = [];
   const queued: EnqueuedJob[] = [];
@@ -118,6 +133,8 @@ export async function createApp(): Promise<{
   const apifyDataset: { items: unknown[]; failRun?: boolean } = { items: [] };
   const fakeWeb: FakeWeb = { pages: {}, hunterEmails: [] };
   const fakeAnthropic: FakeAnthropic = { reply: 'GENERIC', calls: [] };
+  const fakeSmtp: FakeSmtp = { sent: [] };
+  let smtpSeq = 0;
 
   const record = (sink: EnqueuedJob[]) => ({
     add: async (name: string, data: any, opts?: { jobId?: string }) => {
@@ -146,6 +163,24 @@ export async function createApp(): Promise<{
     .useValue(fakeEnrichmentFetch(fakeWeb))
     .overrideProvider(QUOTA_COUNTER)
     .useValue(new InMemoryQuotaCounter())
+    .overrideProvider(SMTP_TRANSPORT_FACTORY)
+    .useValue((creds: SmtpCredentials) => ({
+      // Hosts containing "bad" fail verification (bad host/credentials).
+      verify: async () => {
+        if (creds.host.includes('bad')) throw new Error('535 authentication failed');
+        return true as const;
+      },
+      sendMail: async (mail: OutboundMail) => {
+        if (fakeSmtp.failNextSendWith) {
+          const err = fakeSmtp.failNextSendWith;
+          fakeSmtp.failNextSendWith = undefined;
+          throw err;
+        }
+        const messageId = `<fake-${++smtpSeq}@${creds.host}>`;
+        fakeSmtp.sent.push({ creds, mail, messageId });
+        return { messageId };
+      },
+    }))
     .overrideProvider(ANTHROPIC_CLIENT_FACTORY)
     .useValue((apiKey: string) => ({
       messages: {
@@ -176,6 +211,7 @@ export async function createApp(): Promise<{
     apifyDataset,
     fakeWeb,
     fakeAnthropic,
+    fakeSmtp,
   };
 }
 
