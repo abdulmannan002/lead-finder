@@ -17,6 +17,6 @@ import { realSmtpTransportFactory, SMTP_TRANSPORT_FACTORY } from './smtp';
     { provide: INTEGRATIONS_FETCH, useValue: fetch },
     { provide: SMTP_TRANSPORT_FACTORY, useValue: realSmtpTransportFactory },
   ],
-  exports: [IntegrationsService, EmailAccountsService],
+  exports: [IntegrationsService, EmailAccountsService, SMTP_TRANSPORT_FACTORY],
 })
 export class IntegrationsModule {}

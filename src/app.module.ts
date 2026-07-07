@@ -5,7 +5,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { SourcingModule } from './modules/sourcing/sourcing.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
-import { DeliveryModule } from './modules/delivery/delivery.module';
+import { DeliveryModule } from './modules/delivery/delivery.module'; // send engine (M3)
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';

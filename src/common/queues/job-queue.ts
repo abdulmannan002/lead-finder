@@ -14,6 +14,8 @@ export interface JobOptions {
   jobId?: string;
   /** BullMQ repeatable schedule (used for cron-style sweeps). */
   repeat?: { every: number };
+  /** Delay before the job runs, in ms (send jitter, FR-7.2). */
+  delay?: number;
 }
 
 export interface JobQueue<T extends TenantJobData = TenantJobData> {

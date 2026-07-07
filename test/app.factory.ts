@@ -14,6 +14,7 @@ import {
   AI_PERSONALIZE_QUEUE,
   ENRICH_EMAIL_QUEUE,
   SCRAPE_RUN_QUEUE,
+  SEND_DISPATCH_QUEUE,
 } from '../src/common/queues/queues.module';
 
 export interface SentMail {
@@ -24,7 +25,7 @@ export interface SentMail {
 export interface EnqueuedJob {
   name: string;
   data: any;
-  opts?: { jobId?: string };
+  opts?: { jobId?: string; delay?: number };
 }
 
 /**
@@ -121,6 +122,7 @@ export async function createApp(): Promise<{
   queued: EnqueuedJob[];
   enrichQueued: EnqueuedJob[];
   personalizeQueued: EnqueuedJob[];
+  dispatchQueued: EnqueuedJob[];
   apifyDataset: { items: unknown[]; failRun?: boolean };
   fakeWeb: FakeWeb;
   fakeAnthropic: FakeAnthropic;
@@ -130,6 +132,7 @@ export async function createApp(): Promise<{
   const queued: EnqueuedJob[] = [];
   const enrichQueued: EnqueuedJob[] = [];
   const personalizeQueued: EnqueuedJob[] = [];
+  const dispatchQueued: EnqueuedJob[] = [];
   const apifyDataset: { items: unknown[]; failRun?: boolean } = { items: [] };
   const fakeWeb: FakeWeb = { pages: {}, hunterEmails: [] };
   const fakeAnthropic: FakeAnthropic = { reply: 'GENERIC', calls: [] };
@@ -157,6 +160,8 @@ export async function createApp(): Promise<{
     .useValue(record(enrichQueued))
     .overrideProvider(AI_PERSONALIZE_QUEUE)
     .useValue(record(personalizeQueued))
+    .overrideProvider(SEND_DISPATCH_QUEUE)
+    .useValue(record(dispatchQueued))
     .overrideProvider(SOURCING_FETCH)
     .useValue(fakeApifyFetch(apifyDataset))
     .overrideProvider(ENRICHMENT_FETCH)
@@ -208,6 +213,7 @@ export async function createApp(): Promise<{
     queued,
     enrichQueued,
     personalizeQueued,
+    dispatchQueued,
     apifyDataset,
     fakeWeb,
     fakeAnthropic,

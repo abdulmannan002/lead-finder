@@ -9,6 +9,8 @@ import type { TenantJobData } from './common/queues/job-queue';
 import { ScrapeRunProcessor } from './modules/sourcing/scrape-run.processor';
 import { EnrichEmailProcessor } from './modules/enrichment/enrich-email.processor';
 import { PersonalizeProcessor } from './modules/enrichment/personalize.processor';
+import { SendDispatchProcessor } from './modules/delivery/send-dispatch.processor';
+import { SendPlanProcessor } from './modules/delivery/send-plan.processor';
 import { BullJobQueue } from './common/queues/job-queue';
 
 interface JobProcessor {
@@ -23,15 +25,24 @@ const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
   { queue: QUEUE_NAMES.SCRAPE_RUN, provider: ScrapeRunProcessor },
   { queue: QUEUE_NAMES.ENRICH_EMAIL, provider: EnrichEmailProcessor },
   { queue: QUEUE_NAMES.AI_PERSONALIZE, provider: PersonalizeProcessor },
+  { queue: QUEUE_NAMES.SEND_PLAN, provider: SendPlanProcessor },
+  { queue: QUEUE_NAMES.SEND_DISPATCH, provider: SendDispatchProcessor },
 ];
 
-/** docs/03 §4 — enrich.email batch cron: sweep NEW-without-email leads. */
+/** docs/03 §4 — the repeatable crons. */
 async function registerRepeatables() {
   const enrich = new BullJobQueue(QUEUE_NAMES.ENRICH_EMAIL);
   await enrich.add(
     'batch',
     { tenantId: '', batch: true },
     { jobId: 'enrich-batch-scan', repeat: { every: 10 * 60 * 1000 } },
+  );
+  // send.plan every 15 min (docs/03 §4).
+  const plan = new BullJobQueue(QUEUE_NAMES.SEND_PLAN);
+  await plan.add(
+    'plan',
+    { tenantId: '', batch: true },
+    { jobId: 'send-plan', repeat: { every: 15 * 60 * 1000 } },
   );
 }
 
