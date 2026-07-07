@@ -120,6 +120,127 @@ function IntegrationCard({
   );
 }
 
+interface EmailAccountView {
+  id: string;
+  address: string;
+  status: string;
+  dailyCap: number;
+  fromName: string | null;
+}
+
+function EmailAccountsCard() {
+  const [accounts, setAccounts] = useState<EmailAccountView[]>([]);
+  const [form, setForm] = useState({
+    address: '',
+    host: '',
+    port: '587',
+    user: '',
+    pass: '',
+    fromName: '',
+    signature: '',
+    dailyCap: '30',
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const reload = useCallback(() => {
+    api<EmailAccountView[]>('/email-accounts').then(setAccounts).catch(() => {});
+  }, []);
+  useEffect(() => reload(), [reload]);
+
+  const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  async function connect() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/email-accounts/smtp', {
+        method: 'POST',
+        body: {
+          ...form,
+          port: Number(form.port),
+          dailyCap: Number(form.dailyCap) || 30,
+          fromName: form.fromName || undefined,
+          signature: form.signature || undefined,
+        },
+      });
+      setForm((f) => ({ ...f, address: '', user: '', pass: '' }));
+      reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to connect');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest(id: string) {
+    setNotice(null);
+    try {
+      await api(`/email-accounts/${id}/test`, { method: 'POST' });
+      setNotice('Test email sent — check the inbox (mailhog: http://localhost:8025).');
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : 'Test send failed');
+    }
+  }
+
+  async function patchCap(id: string, dailyCap: number) {
+    await api(`/email-accounts/${id}`, { method: 'PATCH', body: { dailyCap } }).catch(() => {});
+    reload();
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Sending accounts (SMTP)</CardTitle>
+        <CardDescription>
+          The connection is tested before saving; credentials are encrypted and never shown again.
+          Daily caps are enforced server-side.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {accounts.map((a) => (
+          <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
+            <span className="font-medium">{a.address}</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{a.status.toLowerCase()}</span>
+            <label className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+              cap/day
+              <input
+                className="w-16 rounded-md border bg-transparent px-1 py-0.5 text-xs"
+                type="number"
+                defaultValue={a.dailyCap}
+                onBlur={(e) => {
+                  const v = Number(e.target.value);
+                  if (v && v !== a.dailyCap) void patchCap(a.id, v);
+                }}
+              />
+            </label>
+            <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => void sendTest(a.id)}>
+              Send test
+            </Button>
+          </div>
+        ))}
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Input placeholder="From address" value={form.address} onChange={set('address')} />
+          <Input placeholder="SMTP host" value={form.host} onChange={set('host')} />
+          <Input placeholder="Port" type="number" value={form.port} onChange={set('port')} />
+          <Input placeholder="Daily cap" type="number" value={form.dailyCap} onChange={set('dailyCap')} />
+          <Input placeholder="Username" value={form.user} onChange={set('user')} />
+          <Input placeholder="Password" type="password" value={form.pass} onChange={set('pass')} />
+          <Input placeholder="From name (optional)" value={form.fromName} onChange={set('fromName')} />
+          <Input placeholder="Signature (optional)" value={form.signature} onChange={set('signature')} />
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+        <Button onClick={() => void connect()} disabled={busy || !form.address || !form.host}>
+          {busy ? 'Testing connection…' : 'Connect account'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const [integrations, setIntegrations] = useState<IntegrationView[]>([]);
 
@@ -137,6 +258,7 @@ export default function SettingsPage() {
           Bring your own API keys — they are validated, encrypted, and never shown again.
         </p>
       </div>
+      <EmailAccountsCard />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {KINDS.map(({ kind, label, hint }) => (
           <IntegrationCard
