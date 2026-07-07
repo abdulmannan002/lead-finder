@@ -141,6 +141,8 @@ model Tenant {
   // Only the `true` path is implemented in M1: keeping no-website leads
   // needs a dedupe-key decision first (unique is on websiteDomain).
   discardNoWebsite Boolean    @default(true)
+  /// FR-10.3 — soft-delete timestamp; hard purge after 30 days.
+  deletedAt      DateTime?
   createdAt      DateTime     @default(now())
 
   memberships   Membership[]
