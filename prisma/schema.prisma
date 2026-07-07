@@ -160,6 +160,7 @@ model Tenant {
   dailyMetrics  DailyMetric[]
   activityLogs  ActivityLog[]
   notifications Notification[]
+  businessProfile BusinessProfile?
 }
 
 /// GLOBAL identity — deliberately NO tenantId. Tenancy and roles live on
@@ -169,6 +170,9 @@ model User {
   email        String   @unique
   passwordHash String
   totpSecret   String?
+  /// MP-3 — email verification badge (docs/07).
+  emailVerifiedAt DateTime?
+  verifyTokenHash String?   @unique
   createdAt    DateTime @default(now())
 
   memberships   Membership[]
@@ -436,6 +440,31 @@ model DailyMetric {
   errors       Int      @default(0)
 
   @@unique([tenantId, day])
+}
+
+/// MP-1 — one public marketplace profile per workspace (docs/07).
+/// PUBLISHED profiles are readable cross-tenant BY DESIGN (public
+/// directory); writes stay tenant-scoped.
+model BusinessProfile {
+  id          String    @id @default(uuid())
+  tenantId    String    @unique
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug        String    @unique
+  displayName String
+  category    String
+  services    Json // string[] of offered services/keywords
+  description String?
+  city        String?
+  country     String    @default("PK")
+  phone       String?
+  whatsapp    String?
+  websiteUrl  String?
+  published   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([published, category])
+  @@index([published, city])
 }
 
 /// FR-8.4 in-app notification feed (M4 ruling — model added to docs/02).

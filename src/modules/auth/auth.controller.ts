@@ -6,8 +6,16 @@ import { Public } from '../../common/guards/public.decorator';
 import { Roles } from '../../common/guards/roles.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshDto, SignupDto, SwitchTenantDto } from './dto/auth.dto';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { AcceptInviteDto, InviteDto } from './dto/invite.dto';
 import { InvitationsService } from './invitations.service';
+import { VerificationService } from './verification.service';
+
+class ConfirmVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+}
 
 /** docs/03 §6 — auth endpoints: 5/min per IP. */
 @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -16,6 +24,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly invitations: InvitationsService,
+    private readonly verification: VerificationService,
   ) {}
 
   /** FR-1.1 — creates global User + Tenant + OWNER membership. */
@@ -59,5 +68,19 @@ export class AuthController {
   @Post('accept-invite')
   acceptInvite(@Body() dto: AcceptInviteDto) {
     return this.invitations.accept(dto.token, dto.password);
+  }
+
+  /** MP-3 — email verification for the directory trust badge. */
+  @HttpCode(200)
+  @Post('verify-email/request')
+  requestVerification(@CurrentUser() user: AuthUser) {
+    return this.verification.request(user.userId);
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('verify-email/confirm')
+  confirmVerification(@Body() dto: ConfirmVerifyDto) {
+    return this.verification.confirm(dto.token);
   }
 }

@@ -11,3 +11,4 @@ process.env.WEB_APP_URL ??= 'http://localhost:3000';
 process.env.MASTER_ENCRYPTION_KEY ??= Buffer.from(
   'e2e-master-key-32-bytes-exactly!',
 ).toString('base64');
+process.env.PLATFORM_ANTHROPIC_KEY ??= 'sk-ant-platform-e2e';

@@ -20,6 +20,6 @@ import { ENRICHMENT_FETCH, SiteScraper } from './site-scraper';
     { provide: ENRICHMENT_FETCH, useValue: fetch },
     { provide: ANTHROPIC_CLIENT_FACTORY, useValue: realAnthropicClientFactory },
   ],
-  exports: [EnrichEmailProcessor, PersonalizeProcessor, SiteScraper],
+  exports: [EnrichEmailProcessor, PersonalizeProcessor, SiteScraper, ANTHROPIC_CLIENT_FACTORY],
 })
 export class EnrichmentModule {}

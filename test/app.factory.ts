@@ -172,6 +172,9 @@ export async function createApp(): Promise<{
       sendInvite: async (to: string, _tenant: string, _role: string, link: string) => {
         outbox.push({ to, link });
       },
+      sendVerification: async (to: string, link: string) => {
+        outbox.push({ to, link });
+      },
     })
     .overrideProvider(INTEGRATIONS_FETCH)
     .useValue(fakeProviderFetch)
