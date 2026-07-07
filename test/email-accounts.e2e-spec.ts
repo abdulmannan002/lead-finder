@@ -10,6 +10,7 @@ describe('Email accounts (e2e, FR-2.2/FR-2.3)', () => {
   let system: SystemPrismaService;
   let token: string;
   let tokenB: string;
+  let tenantId: string;
   let accountId: string;
 
   const SMTP_BODY = {
@@ -33,6 +34,7 @@ describe('Email accounts (e2e, FR-2.2/FR-2.3)', () => {
       .send({ email: 'a@acct.test', password: 'password123', tenantName: 'Acct A' })
       .expect(201);
     token = a.body.accessToken;
+    tenantId = a.body.tenant.id;
 
     const b = await request(server)
       .post('/api/v1/auth/signup')
@@ -52,7 +54,7 @@ describe('Email accounts (e2e, FR-2.2/FR-2.3)', () => {
       .send({ ...SMTP_BODY, host: 'bad-smtp.m3co.pk' })
       .expect(400);
     expect(res.body.error.code).toBe('SMTP_CONNECT_FAILED');
-    expect(await system.emailAccount.count()).toBe(0);
+    expect(await system.emailAccount.count({ where: { tenantId } })).toBe(0);
   });
 
   it('connects a verified account; credentials are encrypted and never returned (rule 3)', async () => {

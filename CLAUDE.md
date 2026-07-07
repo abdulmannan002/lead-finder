@@ -68,8 +68,8 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M2 COMPLETE (exit criterion verified in e2e: 20 NEW leads →
-75% READY with emails + openers; 95 unit + 64 e2e green). M1's manual
-exit check (real Apify run visible in UI) still pending a real key.
-M3 not started — propose a task breakdown and wait for approval before
-beginning.
+Milestone: M3 COMPLETE (T-3/T-4/T-5/T-9/T-10/T-12 automated; full
+3-step lifecycle verified; 108 unit + 101 e2e green). Manual checks
+pending real credentials: M1 Apify run in UI, M3 mailhog/Gmail visual
+threading. M4 not started — propose a task breakdown and wait for
+approval before beginning.
