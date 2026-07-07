@@ -68,8 +68,8 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M3 COMPLETE (T-3/T-4/T-5/T-9/T-10/T-12 automated; full
-3-step lifecycle verified; 108 unit + 101 e2e green). Manual checks
-pending real credentials: M1 Apify run in UI, M3 mailhog/Gmail visual
-threading. M4 not started — propose a task breakdown and wait for
-approval before beginning.
+Milestone: M4 COMPLETE (T-6/T-7/T-8/T-11 automated; exit criterion
+verified: reply → immediate alert, REPLIED, no further sends; 129 unit
++ 122 e2e green). Manual checks pending real credentials: M1 Apify run,
+M3 mailhog threading, M4 real-mailbox reply loop. M5 not started —
+propose a task breakdown and wait for approval before beginning.

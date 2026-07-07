@@ -1,24 +1,21 @@
 # Progress
 
-## Milestone M3 — Campaigns & sending: COMPLETE ✅ ("the risky one")
+## Milestone M4 — Replies & metrics: COMPLETE ✅
 
-### Done in M3
-- **Email accounts (FR-2.2/2.3)**: SMTP connect with pre-save connection test, AES-256-GCM credentials (write-only), cap/signature/status editing, send-test-to-self. Gmail OAuth stubbed 501 per ruling (pilot needs a Google Cloud app).
-- **Campaigns (FR-6.1/6.2)**: CRUD with DRAFT→ACTIVE→PAUSED(→COMPLETED) transitions; activation validates account + steps; full-replacement step editor with **T-12** template validation (unknown `{{var}}` → 422 naming it); steps frozen while ACTIVE; pure template engine (`{{offer_price}}` → offerText per ruling).
-- **Enrollment (FR-6.3/6.4, T-9)**: by ids or lead filter with per-lead skip reasons (suppressed/no_email/bounced/archived/already_active/not_found); one-active-campaign-per-lead via the M0 partial unique; manual stop; `bulk action=enroll`.
-- **Send engine (FR-7.1–7.5)**: `send.plan` 15-min repeatable — kill-switch chain (T-10), schedule windows (tenant-tz fallback), follow-ups-first via the partial index, **server-side daily caps** (Redis counter, tenant-tz day — T-4), Message(QUEUED)+claim in one tx (rule 2), 3–7 min jitter (FR-7.2); `send.dispatch` — SENT-check retry safety (**T-3**), template render, threading with In-Reply-To/References/Re: (**T-5**), providerMsgId stored (FR-7.5), hard-bounce handling (FR-7.4), soft-failure backoff.
-- **Ops**: test-send (step 1 → own address), `GET /messages`, per-step stats with reply attribution (FR-9.4 skeleton for M4).
-- **Web**: SMTP account manager in Settings; campaign builder (sequence editor with variable hints, account picker, activate/pause, test-send, enroll-READY, stats).
-- **Acceptance**: full 3-step lifecycle e2e — delivery, growing References chain, restart-safe, COMPLETED. **108 unit + 101 e2e tests across 16 suites — all green.**
+### Done in M4
+- **Notifications (FR-8.4/FR-2.4)**: tenant-scoped in-app feed (`Notification` model per ruling) with unread counter + mark-read; Telegram alerts via the tenant's bot (vault key + chatId), best-effort so alert failures never break pipelines.
+- **Inbox watcher (FR-8.1–8.3)**: `inbox.poll` 5-min repeatable, per-account IMAP (imapflow behind a DI token, `inboxCheckpoint` on the account, optional imapHost/imapPort in SMTP creds); pure classifier separates genuine replies from auto-replies/OOO (**T-7**) and DSN bounces (**T-8**); matching by In-Reply-To/References → `providerMsgId`, sender fallback; genuine reply → REPLIED + replyText + inbound Message + immediate alert (**T-6**); opt-out intent → permanent DO_NOT_CONTACT (FR-7.6); IMAP auth failure → account ERROR + notification, sends pause (**T-11**).
+- **Reply inbox (FR-9.3)**: `GET /replies` (unhandled filter, lead/campaign context), `PATCH /replies/:id` outcome CALL_BOOKED/WON/LOST + note (ReplyOutcome columns per ruling).
+- **Metrics (FR-9.1/9.5)**: hourly `rollup.daily` recomputing today per tenant tz (idempotent upsert on (tenantId, day), idle tenants skipped); `GET /metrics/daily|overview|funnel` (funnel: lead → enrolled → contacted → replied → won).
+- **Web**: dashboard with scorecards, recharts sends/replies/bounces chart, funnel bars, notifications card; reply inbox with one-click triage.
+- **Acceptance**: exit criterion e2e — reply → alert inside the same poll pass (« 1 min), REPLIED, step 2 never sends, reply appears in the inbox, day rolls up. **129 unit + 122 e2e across 21 suites — all green.**
 
-### M3 exit criterion — remaining manual step
-"3-step sequence delivers to a test inbox and threads in Gmail" — the automated suite proves it against the fake transport; the mailhog/Gmail visual check needs Docker (mailhog) or a real SMTP account: run API + worker + web, connect SMTP, build a campaign, enroll, watch mailhog (localhost:8025).
-
-### Next (M4 — awaiting task-breakdown approval)
-- Inbox watcher (IMAP/Gmail polling), reply matching + sequence stop, auto-reply/bounce classification, Telegram + in-app alerts, daily rollups, dashboard charts, reply inbox. T-6, T-7, T-8, T-11.
+### Next (M5 — hardening & pilot — awaiting task-breakdown approval)
+- Audit log interceptor, CSV exports, rate limits, Sentry, bull-board, backups doc, remaining e2e polish. Exit: SignX dogfoods its logistics campaign for 2 weeks.
 
 ### Known issues / notes
-- Gmail OAuth deferred to pilot (M5) per ruling — SMTP is the only connect path.
-- Reply columns in campaign stats fill with real data once M4's reply detection lands (attribution logic already tested via simulated REPLIED enrollments).
-- Soft SMTP failures rely on BullMQ backoff; after final attempt the claim goes stale (1h) and send.plan re-books the enrollment.
-- Local dev still Docker-less: e2e via `TEST_DATABASE_URL` embedded PG; queue producers stubbed, processors driven inline.
+- Gmail OAuth still deferred to pilot (needs a Google Cloud app).
+- 5-min reply latency bound comes from the poll cadence; IMAP IDLE or Gmail push can tighten it post-pilot.
+- `emailsFound` daily metric is an approximation (finder-attributed emails whose lead changed that day).
+- Manual checks pending real credentials: M1 Apify run, M3 mailhog threading, M4 real-mailbox reply loop.
+- Local dev remains Docker-less: embedded UTF8 PG via `TEST_DATABASE_URL`; queue producers stubbed in tests, processors driven inline.
