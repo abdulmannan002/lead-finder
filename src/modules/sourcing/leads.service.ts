@@ -4,26 +4,31 @@ import { pageParams, paged } from '../../common/pagination';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { BulkAction, ListLeadsDto, UpdateLeadDto } from './dto/leads.dto';
 
+/** Shared filter builder — the enrollment filter reuses the exact list semantics. */
+export function buildLeadWhere(dto: ListLeadsDto): Prisma.LeadWhereInput {
+  return {
+    ...(dto.status ? { status: dto.status } : {}),
+    ...(dto.city ? { city: { contains: dto.city, mode: 'insensitive' } } : {}),
+    ...(dto.category ? { category: { contains: dto.category, mode: 'insensitive' } } : {}),
+    ...(dto.hasEmail !== undefined ? { email: dto.hasEmail ? { not: null } : null } : {}),
+    ...(dto.q
+      ? {
+          OR: [
+            { company: { contains: dto.q, mode: 'insensitive' } },
+            { websiteDomain: { contains: dto.q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+  };
+}
+
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(dto: ListLeadsDto) {
     const { page, limit, skip, take } = pageParams(dto);
-    const where: Prisma.LeadWhereInput = {
-      ...(dto.status ? { status: dto.status } : {}),
-      ...(dto.city ? { city: { contains: dto.city, mode: 'insensitive' } } : {}),
-      ...(dto.category ? { category: { contains: dto.category, mode: 'insensitive' } } : {}),
-      ...(dto.hasEmail !== undefined ? { email: dto.hasEmail ? { not: null } : null } : {}),
-      ...(dto.q
-        ? {
-            OR: [
-              { company: { contains: dto.q, mode: 'insensitive' } },
-              { websiteDomain: { contains: dto.q, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-    };
+    const where = buildLeadWhere(dto);
     const [data, total] = await Promise.all([
       this.prisma.client.lead.findMany({
         where,
@@ -69,7 +74,7 @@ export class LeadsService {
   }
 
   /** docs/04 — bulk archive / do_not_contact; suppressed leads are skipped with a reason. */
-  async bulk(ids: string[], action: BulkAction) {
+  async bulk(ids: string[], action: Exclude<BulkAction, 'enroll'>) {
     const found = await this.prisma.client.lead.findMany({
       where: { id: { in: ids } },
       select: { id: true, status: true },

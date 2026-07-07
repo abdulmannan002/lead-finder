@@ -12,6 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { EnrollmentsService } from '../campaigns/enrollments.service';
 import { CsvImportService, CsvMapping } from './csv-import.service';
 import { BulkLeadsDto, ListLeadsDto, UpdateLeadDto } from './dto/leads.dto';
 import { LeadsService } from './leads.service';
@@ -21,6 +22,7 @@ export class LeadsController {
   constructor(
     private readonly leads: LeadsService,
     private readonly csvImport: CsvImportService,
+    private readonly enrollments: EnrollmentsService,
   ) {}
 
   /** FR-3.6 — multipart CSV + column mapping (JSON in the `mapping` field). */
@@ -59,6 +61,15 @@ export class LeadsController {
 
   @Post('bulk')
   bulk(@Body() dto: BulkLeadsDto) {
+    if (dto.action === 'enroll') {
+      if (!dto.campaignId) {
+        throw new BadRequestException({
+          code: 'VALIDATION_ERROR',
+          message: 'campaignId is required for the enroll action',
+        });
+      }
+      return this.enrollments.enroll(dto.campaignId, { leadIds: dto.ids });
+    }
     return this.leads.bulk(dto.ids, dto.action);
   }
 }

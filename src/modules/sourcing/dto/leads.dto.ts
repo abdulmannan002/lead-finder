@@ -57,7 +57,7 @@ export class UpdateLeadDto {
   status?: LeadStatus;
 }
 
-export const BULK_ACTIONS = ['archive', 'do_not_contact'] as const;
+export const BULK_ACTIONS = ['archive', 'do_not_contact', 'enroll'] as const;
 export type BulkAction = (typeof BULK_ACTIONS)[number];
 
 export class BulkLeadsDto {
@@ -67,7 +67,11 @@ export class BulkLeadsDto {
   @IsUUID(undefined, { each: true })
   ids!: string[];
 
-  /** `enroll` arrives with campaigns in M3 (docs/04). */
   @IsIn(BULK_ACTIONS)
   action!: BulkAction;
+
+  /** Required when action=enroll (docs/04). */
+  @IsOptional()
+  @IsUUID()
+  campaignId?: string;
 }
