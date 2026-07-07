@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { InvitationsService } from './invitations.service';
 import { TokenService } from './token.service';
+import { VerificationService } from './verification.service';
 
 // signup/login, JWT issue/refresh, workspace switch, invitations (docs/03 §3)
 @Module({
@@ -15,6 +16,7 @@ import { TokenService } from './token.service';
   providers: [
     AuthService,
     InvitationsService,
+    VerificationService,
     TokenService,
     // Global guard order matters: authenticate first, then authorize.
     { provide: APP_GUARD, useClass: JwtAuthGuard },

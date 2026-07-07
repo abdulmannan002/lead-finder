@@ -23,6 +23,20 @@ export class MailService {
           });
   }
 
+  /** MP-3 — the trust badge starts with a verified email. */
+  async sendVerification(to: string, link: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM ?? 'SignX Reach <no-reply@signxreach.local>',
+        to,
+        subject: 'Verify your email — SignX',
+        text: `Confirm this address to earn the verified badge on your business profile:\n\n${link}\n\nIf you didn't request this, ignore this email.`,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send verification mail to ${to}: ${(err as Error).message}`);
+    }
+  }
+
   async sendInvite(to: string, tenantName: string, role: string, link: string): Promise<void> {
     try {
       await this.transporter.sendMail({

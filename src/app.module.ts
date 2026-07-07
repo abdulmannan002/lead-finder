@@ -12,6 +12,7 @@ import { DeliveryModule } from './modules/delivery/delivery.module'; // send eng
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { MailModule } from './common/mail/mail.module';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -38,6 +39,7 @@ import { ContextMiddleware } from './common/context/context.middleware';
     MetricsModule,
     NotificationsModule,
     AuditModule,
+    MarketplaceModule,
   ],
   providers: [
     // Runs after the module-registered auth guards, so req.user is set
