@@ -161,6 +161,8 @@ model Tenant {
   activityLogs  ActivityLog[]
   notifications Notification[]
   businessProfile BusinessProfile?
+  marketRequests  MarketRequest[]
+  marketResponses MarketResponse[]
 }
 
 /// GLOBAL identity — deliberately NO tenantId. Tenancy and roles live on
@@ -465,6 +467,49 @@ model BusinessProfile {
 
   @@index([published, category])
   @@index([published, city])
+}
+
+enum RequestStatus {
+  OPEN
+  CLOSED
+}
+
+/// MP-4 (docs/07) — a buyer's request-for-quote. tenantId = the BUYER's
+/// workspace; matched providers read requests cross-tenant BY DESIGN
+/// via the system client (marketplace surface).
+model MarketRequest {
+  id          String        @id @default(uuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  category    String
+  city        String?
+  remoteOk    Boolean       @default(true)
+  budget      String?
+  status      RequestStatus @default(OPEN)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  responses MarketResponse[]
+
+  @@index([status, category])
+  @@index([tenantId])
+}
+
+/// MP-6 — a provider's offer on a request. tenantId = the RESPONDER's
+/// workspace (one offer per provider per request).
+model MarketResponse {
+  id        String        @id @default(uuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestId String
+  request   MarketRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  pitch     String
+  createdAt DateTime      @default(now())
+
+  @@unique([requestId, tenantId])
+  @@index([tenantId])
 }
 
 /// FR-8.4 in-app notification feed (M4 ruling — model added to docs/02).

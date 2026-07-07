@@ -27,14 +27,16 @@ engine as an internal growth tool and future premium feature.
 - MP-3 Verification: email-verification badge (User.emailVerifiedAt);
   phone/WhatsApp OTP post-launch.
 - MP-4 Requests (RFQ): registered users post requests (title,
-  description, category, city|remote, budget?); guests may post with a
-  verified email (full account to read responses). Matching: category
-  first, keyword assist; AI ranking later.
+  description, category, city|remote, budget?). Matching: category
+  first, keyword assist; AI ranking later. Guest posting (verified
+  email, no account) is PHASE 2 — v1 requires registration.
 - MP-5 Lead delivery: matched providers get in-app + Telegram/email
   notifications; each matched request is a "lead".
-- MP-6 Responses & contact: providers respond with a pitch; the buyer
-  compares offers and opens a conversation; phone/WhatsApp revealed on
-  buyer's first message. Anti-spam via existing rate limits.
+- MP-6 Responses & contact: providers respond with a pitch (one per
+  request); the buyer compares offers with the responder's public
+  profile + phone/WhatsApp revealed (WhatsApp-first markets — contact
+  moves off-platform in v1; in-app chat is PHASE 2). Anti-spam via
+  existing rate limits + one-response-per-request unique.
 - MP-7 Growth: invitation sequences to the private scraped list via the
   existing delivery engine; track invited→registered conversion.
 
