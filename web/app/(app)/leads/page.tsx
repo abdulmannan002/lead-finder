@@ -1,11 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { IconDownload } from '@/components/icons';
+import { PageHeader } from '@/components/page-header';
+import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 import { api, ApiError } from '@/lib/api';
 import { getSession } from '@/lib/auth';
+import { downloadFile } from '@/lib/download';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 const LEAD_STATUSES = ['NEW', 'ENRICHING', 'READY', 'UNREACHABLE', 'DO_NOT_CONTACT', 'BOUNCED', 'ARCHIVED'];
@@ -128,7 +133,9 @@ function QueriesPanel({ onLeadsChanged }: { onLeadsChanged: () => void }) {
                     <td className="py-2 pr-4">{q.searchString}</td>
                     <td className="py-2 pr-4">{q.city}</td>
                     <td className="py-2 pr-4">{q.maxResults}</td>
-                    <td className="py-2 pr-4">{q.status.toLowerCase()}</td>
+                    <td className="py-2 pr-4">
+                      <StatusBadge status={q.status} />
+                    </td>
                     <td className="py-2 pr-4 text-muted-foreground">
                       {q.runs?.[0]
                         ? `${q.runs[0].status.toLowerCase()} · ${q.runs[0].found} new · ${q.runs[0].duplicates} dupes`
@@ -217,6 +224,7 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
 }
 
 export default function LeadsPage() {
+  const { toast } = useToast();
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -250,8 +258,21 @@ export default function LeadsPage() {
   async function runAction(id: string, action: 'enrich' | 'personalize') {
     try {
       await api(`/leads/${id}/${action}`, { method: 'POST' });
+      toast(action === 'enrich' ? 'Email finder queued' : 'Opener regeneration queued');
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Action failed', 'error');
+    }
+  }
+
+  async function exportCsv() {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (q) params.set('q', q);
+    try {
+      await downloadFile(`/leads/export?${params}`, 'leads.csv');
+      toast('leads.csv downloaded');
     } catch {
-      /* queued failures surface on refresh */
+      toast('Export failed', 'error');
     }
   }
 
@@ -259,7 +280,15 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
+      <PageHeader
+        title="Leads"
+        description="Scraped and imported prospects with enrichment status and editable openers."
+        actions={
+          <Button variant="outline" onClick={() => void exportCsv()}>
+            <IconDownload className="h-4 w-4" /> Export CSV
+          </Button>
+        }
+      />
       <QueriesPanel onLeadsChanged={reload} />
       <ImportPanel onImported={reload} />
 
@@ -317,28 +346,19 @@ export default function LeadsPage() {
                       {lead.email ? (
                         <div>
                           <div>{lead.email}</div>
-                          <div className="mt-0.5 flex gap-1">
+                          <div className="mt-1 flex gap-1">
                             {lead.emailSource && (
-                              <span className="rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">
-                                {lead.emailSource.toLowerCase()}
-                              </span>
+                              <Badge variant="outline">{lead.emailSource.toLowerCase()}</Badge>
                             )}
                             {lead.emailConfidence && (
-                              <span
-                                className={
-                                  'rounded px-1 text-[10px] uppercase ' +
-                                  (lead.emailConfidence === 'HIGH'
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'bg-muted text-muted-foreground')
-                                }
-                              >
+                              <Badge variant={lead.emailConfidence === 'HIGH' ? 'success' : 'neutral'}>
                                 {lead.emailConfidence.toLowerCase()}
-                              </span>
+                              </Badge>
                             )}
                           </div>
                         </div>
                       ) : (
-                        '—'
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="py-2 pr-4">{lead.city ?? '—'}</td>

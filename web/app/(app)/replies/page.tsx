@@ -1,9 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
+import { api, ApiError } from '@/lib/api';
 
 interface ReplyRow {
   id: string;
@@ -21,6 +25,69 @@ const OUTCOMES = [
   { value: 'LOST', label: 'Lost' },
 ];
 
+function ReplyCard({ reply, onChanged }: { reply: ReplyRow; onChanged: () => void }) {
+  const { toast } = useToast();
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function triage(outcome: string) {
+    setBusy(true);
+    try {
+      await api(`/replies/${reply.id}`, {
+        method: 'PATCH',
+        body: { outcome, ...(note.trim() ? { note: note.trim() } : {}) },
+      });
+      toast(`${reply.lead.company} marked ${outcome.toLowerCase().replace('_', ' ')}`);
+      onChanged();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Triage failed', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle className="text-base">{reply.lead.company}</CardTitle>
+          <span className="text-xs text-muted-foreground">
+            {reply.lead.email} · {reply.campaign.name} ·{' '}
+            {new Date(reply.updatedAt).toLocaleString()}
+          </span>
+          {reply.replyOutcome && <StatusBadge status={reply.replyOutcome} />}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <blockquote className="whitespace-pre-wrap rounded-lg border-l-4 border-primary/40 bg-muted/40 p-4 text-sm leading-relaxed">
+          {reply.replyText ?? '(no text captured)'}
+        </blockquote>
+        {!reply.replyHandledAt && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="min-w-64 flex-1"
+              placeholder="Optional note — lands on the lead record…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            {OUTCOMES.map((o) => (
+              <Button
+                key={o.value}
+                variant={o.value === 'WON' ? 'default' : 'outline'}
+                className="h-9 text-xs"
+                disabled={busy}
+                onClick={() => void triage(o.value)}
+              >
+                {o.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function RepliesPage() {
   const [replies, setReplies] = useState<ReplyRow[]>([]);
   const [unhandledOnly, setUnhandledOnly] = useState(true);
@@ -33,71 +100,34 @@ export default function RepliesPage() {
 
   useEffect(() => reload(), [reload]);
 
-  async function triage(id: string, outcome: string) {
-    const note = window.prompt('Note (optional):') ?? undefined;
-    await api(`/replies/${id}`, {
-      method: 'PATCH',
-      body: { outcome, ...(note ? { note } : {}) },
-    }).catch(() => {});
-    reload();
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <h1 className="flex-1 text-2xl font-semibold tracking-tight">Replies</h1>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={unhandledOnly}
-            onChange={(e) => setUnhandledOnly(e.target.checked)}
-          />
-          unhandled only
-        </label>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Answer replies in your real mailbox — this inbox tracks and triages them.
-      </p>
+      <PageHeader
+        title="Replies"
+        description="Answer in your real mailbox — triage outcomes here so the funnel stays honest."
+        actions={
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={unhandledOnly}
+              onChange={(e) => setUnhandledOnly(e.target.checked)}
+            />
+            unhandled only
+          </label>
+        }
+      />
 
       {replies.length === 0 && (
-        <p className="text-sm text-muted-foreground">No replies here — go win some.</p>
-      )}
-      {replies.map((reply) => (
-        <Card key={reply.id}>
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-base">{reply.lead.company}</CardTitle>
-              <span className="text-xs text-muted-foreground">
-                {reply.lead.email} · {reply.campaign.name} ·{' '}
-                {new Date(reply.updatedAt).toLocaleString()}
-              </span>
-              {reply.replyOutcome && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                  {reply.replyOutcome.toLowerCase().replace('_', ' ')}
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <blockquote className="whitespace-pre-wrap rounded-md border-l-4 border-primary/40 bg-muted/40 p-3 text-sm">
-              {reply.replyText ?? '(no text captured)'}
-            </blockquote>
-            {!reply.replyHandledAt && (
-              <div className="flex gap-2">
-                {OUTCOMES.map((o) => (
-                  <Button
-                    key={o.value}
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={() => void triage(reply.id, o.value)}
-                  >
-                    {o.label}
-                  </Button>
-                ))}
-              </div>
-            )}
+        <Card>
+          <CardContent className="p-10 text-center text-sm text-muted-foreground">
+            {unhandledOnly
+              ? 'Inbox zero — every reply is triaged.'
+              : 'No replies yet. They land here the moment the watcher spots one.'}
           </CardContent>
         </Card>
+      )}
+      {replies.map((reply) => (
+        <ReplyCard key={reply.id} reply={reply} onChanged={reload} />
       ))}
     </div>
   );

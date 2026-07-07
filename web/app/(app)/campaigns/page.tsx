@@ -1,10 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { IconDownload } from '@/components/icons';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 import { api, ApiError } from '@/lib/api';
+import { downloadFile } from '@/lib/download';
 
 interface StepRow {
   subjectTpl: string;
@@ -40,6 +45,7 @@ function CampaignCard({
   accounts: AccountRow[];
   onChanged: () => void;
 }) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [steps, setSteps] = useState<StepRow[]>(
     campaign.steps.length > 0
@@ -55,10 +61,10 @@ function CampaignCard({
     setMessage(null);
     try {
       await fn();
-      if (okMessage) setMessage(okMessage);
+      if (okMessage) toast(okMessage);
       onChanged();
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Something went wrong');
+      toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
     }
   }
 
@@ -96,7 +102,7 @@ function CampaignCard({
       <CardHeader className="cursor-pointer" onClick={() => setOpen((o) => !o)}>
         <div className="flex flex-wrap items-center gap-3">
           <CardTitle className="text-base">{campaign.name}</CardTitle>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{campaign.status.toLowerCase()}</span>
+          <StatusBadge status={campaign.status} />
           <span className="text-xs text-muted-foreground">
             {campaign.steps.length} steps · {campaign._count.enrollments} enrolled ·{' '}
             {campaign.emailAccount?.address ?? 'no sending account'}
@@ -136,6 +142,21 @@ function CampaignCard({
             </Button>
             <Button variant="ghost" className="h-8 text-xs" onClick={() => void loadStats()}>
               Stats
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-8 text-xs"
+              onClick={() =>
+                void downloadFile(
+                  `/messages/export?campaignId=${campaign.id}`,
+                  `${campaign.name.replace(/\W+/g, '-').toLowerCase()}-messages.csv`,
+                ).then(
+                  () => toast('Messages exported'),
+                  () => toast('Export failed', 'error'),
+                )
+              }
+            >
+              <IconDownload className="h-3.5 w-3.5" /> Messages CSV
             </Button>
           </div>
 
@@ -258,7 +279,10 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
+      <PageHeader
+        title="Campaigns"
+        description="Multi-step sequences with caps, jitter and threading — build, enroll, activate."
+      />
 
       <Card>
         <CardHeader>
