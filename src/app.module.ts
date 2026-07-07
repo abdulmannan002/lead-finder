@@ -1,4 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { TenantThrottlerGuard } from './common/guards/tenant-throttler.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
@@ -18,6 +21,8 @@ import { ContextMiddleware } from './common/context/context.middleware';
 
 @Module({
   imports: [
+    // docs/03 §6 — API 100/min/tenant (auth routes tighten to 5/min via @Throttle).
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
     PrismaModule,
     MailModule,
     CryptoModule,
@@ -33,6 +38,11 @@ import { ContextMiddleware } from './common/context/context.middleware';
     MetricsModule,
     NotificationsModule,
     AuditModule,
+  ],
+  providers: [
+    // Runs after the module-registered auth guards, so req.user is set
+    // and authenticated traffic is tracked per tenant.
+    { provide: APP_GUARD, useClass: TenantThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {

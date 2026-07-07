@@ -90,6 +90,8 @@ async function bootstrap() {
 
   await registerRepeatables();
 
+  await startBullBoard(logger);
+
   const shutdown = async () => {
     await Promise.all(workers.map((w) => w.close()));
     await app.close();
@@ -97,6 +99,46 @@ async function bootstrap() {
   };
   process.on('SIGINT', () => void shutdown());
   process.on('SIGTERM', () => void shutdown());
+}
+
+/**
+ * NFR-6 — bull-board queue dashboard, served from the worker on its own
+ * port. Off unless ADMIN_DASH_USER/ADMIN_DASH_PASS are set; protected by
+ * HTTP basic auth.
+ */
+async function startBullBoard(logger: Logger) {
+  const user = process.env.ADMIN_DASH_USER;
+  const pass = process.env.ADMIN_DASH_PASS;
+  if (!user || !pass) return;
+
+  const { createBullBoard } = await import('@bull-board/api');
+  const { BullMQAdapter } = await import('@bull-board/api/bullMQAdapter');
+  const { ExpressAdapter } = await import('@bull-board/express');
+  const { Queue } = await import('bullmq');
+  const express = (await import('express')).default;
+
+  const adapter = new ExpressAdapter();
+  adapter.setBasePath('/admin/queues');
+  createBullBoard({
+    queues: Object.values(QUEUE_NAMES).map(
+      (name) => new BullMQAdapter(new Queue(name, { connection: redisConnectionOptions() })),
+    ),
+    serverAdapter: adapter,
+  });
+
+  const server = express();
+  server.use((req, res, next) => {
+    const header = req.headers.authorization ?? '';
+    const expected = `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
+    if (header !== expected) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="queues"').status(401).send();
+      return;
+    }
+    next();
+  });
+  server.use('/admin/queues', adapter.getRouter());
+  const port = Number(process.env.BULL_BOARD_PORT ?? 3002);
+  server.listen(port, () => logger.log(`bull-board on :${port}/admin/queues`));
 }
 
 void bootstrap();

@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/guards/current-user.decorator';
 import { Public } from '../../common/guards/public.decorator';
@@ -8,6 +9,8 @@ import { LoginDto, RefreshDto, SignupDto, SwitchTenantDto } from './dto/auth.dto
 import { AcceptInviteDto, InviteDto } from './dto/invite.dto';
 import { InvitationsService } from './invitations.service';
 
+/** docs/03 §6 — auth endpoints: 5/min per IP. */
+@Throttle({ default: { limit: 5, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
   constructor(

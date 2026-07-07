@@ -1,10 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { validationExceptionFactory } from './common/filters/validation-exception.factory';
 
 async function bootstrap() {
+  // NFR-6 — error alerting; a no-op unless SENTRY_DSN is configured.
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV });
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');
