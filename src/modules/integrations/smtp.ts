@@ -13,6 +13,9 @@ export interface SmtpCredentials {
   user: string;
   pass: string;
   secure?: boolean;
+  /** M4 — reply detection mailbox (defaults: `host`, 993). */
+  imapHost?: string;
+  imapPort?: number;
 }
 
 export interface OutboundMail {

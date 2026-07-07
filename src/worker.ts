@@ -11,6 +11,7 @@ import { EnrichEmailProcessor } from './modules/enrichment/enrich-email.processo
 import { PersonalizeProcessor } from './modules/enrichment/personalize.processor';
 import { SendDispatchProcessor } from './modules/delivery/send-dispatch.processor';
 import { SendPlanProcessor } from './modules/delivery/send-plan.processor';
+import { InboxPollProcessor } from './modules/delivery/inbox-poll.processor';
 import { BullJobQueue } from './common/queues/job-queue';
 
 interface JobProcessor {
@@ -27,6 +28,7 @@ const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
   { queue: QUEUE_NAMES.AI_PERSONALIZE, provider: PersonalizeProcessor },
   { queue: QUEUE_NAMES.SEND_PLAN, provider: SendPlanProcessor },
   { queue: QUEUE_NAMES.SEND_DISPATCH, provider: SendDispatchProcessor },
+  { queue: QUEUE_NAMES.INBOX_POLL, provider: InboxPollProcessor },
 ];
 
 /** docs/03 §4 — the repeatable crons. */
@@ -43,6 +45,13 @@ async function registerRepeatables() {
     'plan',
     { tenantId: '', batch: true },
     { jobId: 'send-plan', repeat: { every: 15 * 60 * 1000 } },
+  );
+  // inbox.poll every 5 min (FR-8.1 latency bound).
+  const inbox = new BullJobQueue(QUEUE_NAMES.INBOX_POLL);
+  await inbox.add(
+    'batch',
+    { tenantId: '', batch: true },
+    { jobId: 'inbox-poll-scan', repeat: { every: 5 * 60 * 1000 } },
   );
 }
 

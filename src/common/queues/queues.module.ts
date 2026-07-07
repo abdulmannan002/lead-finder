@@ -7,6 +7,7 @@ export const SCRAPE_RUN_QUEUE = 'QUEUE:scrape.run';
 export const ENRICH_EMAIL_QUEUE = 'QUEUE:enrich.email';
 export const AI_PERSONALIZE_QUEUE = 'QUEUE:ai.personalize';
 export const SEND_DISPATCH_QUEUE = 'QUEUE:send.dispatch';
+export const INBOX_POLL_QUEUE = 'QUEUE:inbox.poll';
 
 @Global()
 @Module({
@@ -18,7 +19,14 @@ export const SEND_DISPATCH_QUEUE = 'QUEUE:send.dispatch';
       useFactory: () => new BullJobQueue(QUEUE_NAMES.AI_PERSONALIZE),
     },
     { provide: SEND_DISPATCH_QUEUE, useFactory: () => new BullJobQueue(QUEUE_NAMES.SEND_DISPATCH) },
+    { provide: INBOX_POLL_QUEUE, useFactory: () => new BullJobQueue(QUEUE_NAMES.INBOX_POLL) },
   ],
-  exports: [SCRAPE_RUN_QUEUE, ENRICH_EMAIL_QUEUE, AI_PERSONALIZE_QUEUE, SEND_DISPATCH_QUEUE],
+  exports: [
+    SCRAPE_RUN_QUEUE,
+    ENRICH_EMAIL_QUEUE,
+    AI_PERSONALIZE_QUEUE,
+    SEND_DISPATCH_QUEUE,
+    INBOX_POLL_QUEUE,
+  ],
 })
 export class QueuesModule {}

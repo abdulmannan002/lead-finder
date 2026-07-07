@@ -228,6 +228,9 @@ erDiagram
 - `CAMPAIGN.scheduleWindow` JSON shape (M3 ruling): `{ days: [0-6 = Sun-Sat], startHour: 0-23, endHour: 1-24, timezone?: IANA }` — timezone falls back to `TENANT.timezone`.
 - `{{offer_price}}` template variable (M3 ruling): renders from `CAMPAIGN.offerText` in v1 — no separate price column.
 - Per-account daily send caps (M3 ruling): the cap day boundary is the TENANT's timezone (matches T-4's "today/tomorrow" semantics), enforced via Redis counters (non-negotiable rule 4).
+- `NOTIFICATION` (M4 ruling): tenant-scoped in-app alert feed (FR-8.4); index (tenantId, createdAt) and (tenantId, readAt).
+- `EMAIL_ACCOUNT.inboxCheckpoint` (M4 ruling): the docs/03 §4 per-account inbox.poll checkpoint ("uidValidity:lastSeenUid" for IMAP). SMTP accounts may carry optional imapHost/imapPort inside the encrypted credentials blob (defaults: SMTP host, 993).
+- `ENROLLMENT.replyOutcome` (CALL_BOOKED/WON/LOST) + `replyHandledAt` (M4 ruling): reply-inbox triage per docs/04 PATCH /replies/:enrollmentId; "won" feeds the funnel.
 - One active enrollment per lead: partial UNIQUE index on ENROLLMENT(leadId) WHERE status IN ('QUEUED','ACTIVE').
 - All FKs ON DELETE: tenant-owned rows CASCADE from TENANT (soft-delete first, purge job later); MESSAGE→ENROLLMENT RESTRICT.
 

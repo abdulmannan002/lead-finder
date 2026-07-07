@@ -228,6 +228,9 @@ model EmailAccount {
   fromName       String?
   signature      String?
   status         AccountStatus @default(ACTIVE)
+  /// docs/03 §4 — inbox.poll "last-history-id checkpoint per account"
+  /// (IMAP: "uidValidity:lastSeenUid"). M4 ruling.
+  inboxCheckpoint String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

@@ -40,6 +40,19 @@ export class ConnectSmtpDto {
   @IsBoolean()
   secure?: boolean;
 
+  /** M4 — reply detection reads this mailbox (defaults: SMTP host, 993). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  imapHost?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  imapPort?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)
