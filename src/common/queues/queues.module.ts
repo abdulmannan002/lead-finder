@@ -6,6 +6,7 @@ import { QUEUE_NAMES } from './queue-names';
 export const SCRAPE_RUN_QUEUE = 'QUEUE:scrape.run';
 export const ENRICH_EMAIL_QUEUE = 'QUEUE:enrich.email';
 export const AI_PERSONALIZE_QUEUE = 'QUEUE:ai.personalize';
+export const SEND_DISPATCH_QUEUE = 'QUEUE:send.dispatch';
 
 @Global()
 @Module({
@@ -16,7 +17,8 @@ export const AI_PERSONALIZE_QUEUE = 'QUEUE:ai.personalize';
       provide: AI_PERSONALIZE_QUEUE,
       useFactory: () => new BullJobQueue(QUEUE_NAMES.AI_PERSONALIZE),
     },
+    { provide: SEND_DISPATCH_QUEUE, useFactory: () => new BullJobQueue(QUEUE_NAMES.SEND_DISPATCH) },
   ],
-  exports: [SCRAPE_RUN_QUEUE, ENRICH_EMAIL_QUEUE, AI_PERSONALIZE_QUEUE],
+  exports: [SCRAPE_RUN_QUEUE, ENRICH_EMAIL_QUEUE, AI_PERSONALIZE_QUEUE, SEND_DISPATCH_QUEUE],
 })
 export class QueuesModule {}

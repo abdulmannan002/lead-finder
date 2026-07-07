@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EmailConfidence, EmailSource, IntegrationKind, LeadStatus } from '@prisma/client';
-import { QUOTA_COUNTER, QuotaCounter } from '../../common/counters/quota-counter';
+import { monthKey, QUOTA_COUNTER, QuotaCounter } from '../../common/counters/quota-counter';
 import { PrismaService } from '../../common/prisma/prisma.service';
 // SystemPrismaService use is BY DESIGN: the batch scan is a platform-wide
 // sweep across tenants (docs/02 §5); per-lead work stays tenant-scoped.
@@ -105,7 +105,7 @@ export class EnrichEmailProcessor {
       const hunterKey = await this.integrations.getKey(IntegrationKind.HUNTER);
       if (hunterKey) {
         const limit = Number(hunterKey.config?.monthlyQuota ?? DEFAULT_HUNTER_MONTHLY_QUOTA);
-        if (await this.quota.consume('hunter', tenantId, limit)) {
+        if (await this.quota.consume('hunter', tenantId, limit, monthKey())) {
           const result = await this.hunter.domainSearch(hunterKey.key, lead.websiteDomain);
           if (result) {
             return await this.found(
