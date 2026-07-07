@@ -108,6 +108,13 @@ enum EnrollmentStatus {
   BOUNCED
 }
 
+/// M4 ruling — reply-inbox triage (docs/04 PATCH /replies/:enrollmentId).
+enum ReplyOutcome {
+  CALL_BOOKED
+  WON
+  LOST
+}
+
 enum MessageDirection {
   OUTBOUND
   INBOUND
@@ -377,6 +384,8 @@ model Enrollment {
   nextDueAt   DateTime?
   claimedAt   DateTime?
   replyText   String?
+  replyOutcome   ReplyOutcome?
+  replyHandledAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 

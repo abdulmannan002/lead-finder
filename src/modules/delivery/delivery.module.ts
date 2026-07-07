@@ -4,6 +4,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { INBOX_FETCHER, ImapInboxFetcher } from './inbox-fetcher';
 import { InboxPollProcessor } from './inbox-poll.processor';
 import { MessagesController } from './messages.controller';
+import { RepliesController } from './replies.controller';
 import { SendDispatchProcessor } from './send-dispatch.processor';
 import { SendPlanProcessor } from './send-plan.processor';
 
@@ -11,7 +12,7 @@ import { SendPlanProcessor } from './send-plan.processor';
 // reply matcher (docs/03 §3)
 @Module({
   imports: [IntegrationsModule, NotificationsModule],
-  controllers: [MessagesController],
+  controllers: [MessagesController, RepliesController],
   providers: [
     SendPlanProcessor,
     SendDispatchProcessor,
