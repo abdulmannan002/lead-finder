@@ -100,3 +100,59 @@ export const IconSearch = icon(
     <path d="M20 20l-3.8-3.8" />
   </>,
 );
+
+export const IconStore = icon(
+  <>
+    <path d="M4 7l1.5-4h13L20 7" />
+    <path d="M4 7h16v3a3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1-3 3 3 3 0 0 1-1-.17" />
+    <path d="M5 12.8V21h14v-8.2M9 21v-5h6v5" />
+  </>,
+);
+
+export const IconRequests = icon(
+  <>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M3 12h18" />
+  </>,
+);
+
+export const IconInboxLeads = icon(
+  <>
+    <path d="M3 13l3-8h12l3 8" />
+    <path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+    <path d="M3 13h5a4 4 0 0 0 8 0h5" />
+  </>,
+);
+
+export const IconVerified = icon(
+  <>
+    <path d="M12 2.5l2.4 1.8 3-.3 1.1 2.8 2.6 1.5-.7 2.9.7 2.9-2.6 1.5-1.1 2.8-3-.3-2.4 1.8-2.4-1.8-3 .3-1.1-2.8L3 14.1l.7-2.9L3 8.3l2.6-1.5L6.6 4l3 .3L12 2.5z" />
+    <path d="M9.2 12.2l1.9 1.9 3.7-4" />
+  </>,
+);
+
+export const IconPhone = icon(
+  <path d="M5 4h4l1.5 4.5L8 10a12 12 0 0 0 6 6l1.5-2.5L20 15v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />,
+);
+
+export const IconChat = icon(
+  <>
+    <path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3z" />
+    <path d="M8 10h8M8 13.5h5" />
+  </>,
+);
+
+export const IconGlobe = icon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z" />
+  </>,
+);
+
+export const IconMapPin = icon(
+  <>
+    <path d="M12 21s-6.5-5.3-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.7 12 21 12 21z" />
+    <circle cx="12" cy="10.3" r="2.3" />
+  </>,
+);

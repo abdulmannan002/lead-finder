@@ -7,7 +7,8 @@ import { getSession } from '@/lib/auth';
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(getSession() ? '/dashboard' : '/login');
+    // Logged-out visitors land on the public marketplace, not a login wall.
+    router.replace(getSession() ? '/dashboard' : '/market');
   }, [router]);
   return null;
 }

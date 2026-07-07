@@ -36,6 +36,7 @@ export function statusVariant(status: string): BadgeVariant {
     case 'ACTIVE':
     case 'SENT':
     case 'WON':
+    case 'OPEN':
       return 'success';
     case 'ENRICHING':
     case 'WARMUP':

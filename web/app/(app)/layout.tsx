@@ -7,11 +7,14 @@ import {
   IconAudit,
   IconCampaigns,
   IconDashboard,
+  IconInboxLeads,
   IconLeads,
   IconLogout,
   IconMetrics,
   IconReplies,
+  IconRequests,
   IconSettings,
+  IconStore,
 } from '@/components/icons';
 import { TenantSwitcher } from '@/components/tenant-switcher';
 import { ToastProvider } from '@/components/ui/toast';
@@ -21,13 +24,25 @@ import { cn } from '@/lib/utils';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: IconDashboard },
+  { section: 'Marketplace' },
+  { href: '/marketplace', label: 'My listing', icon: IconStore },
+  { href: '/market-leads', label: 'Lead feed', icon: IconInboxLeads },
+  { href: '/requests', label: 'My requests', icon: IconRequests },
+  { section: 'Outreach' },
   { href: '/leads', label: 'Leads', icon: IconLeads },
   { href: '/campaigns', label: 'Campaigns', icon: IconCampaigns },
   { href: '/replies', label: 'Replies', icon: IconReplies },
   { href: '/metrics', label: 'Metrics', icon: IconMetrics },
+  { section: 'Workspace' },
   { href: '/audit', label: 'Audit', icon: IconAudit, minRole: 'ADMIN' as const },
   { href: '/settings', label: 'Settings', icon: IconSettings },
-];
+] as Array<{
+  href?: string;
+  label?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  minRole?: 'ADMIN';
+  section?: string;
+}>;
 
 const RANK: Record<string, number> = { MEMBER: 1, ADMIN: 2, OWNER: 3 };
 
@@ -75,15 +90,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <TenantSwitcher />
           </div>
 
-          <nav className="flex-1 space-y-0.5 p-3">
+          <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
             {NAV.filter((item) => !item.minRole || RANK[role] >= RANK[item.minRole]).map(
               (item) => {
-                const active = pathname?.startsWith(item.href);
-                const Icon = item.icon;
+                if (item.section) {
+                  return (
+                    <div
+                      key={item.section}
+                      className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 first:pt-1"
+                    >
+                      {item.section}
+                    </div>
+                  );
+                }
+                const active = pathname?.startsWith(item.href!);
+                const Icon = item.icon!;
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={item.href!}
                     className={cn(
                       'group flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors',
                       active
