@@ -216,6 +216,9 @@ erDiagram
 - `MESSAGE`: index on providerMsgId (reply matching); index on (enrollmentId, sentAt); index (tenantId).
 - `DAILY_METRIC`: UNIQUE (tenantId, day) — upsert target.
 - `TENANT.discardNoWebsite` (FR-3.5): only the `true` path is implemented in v1 M1 — keeping no-website leads requires a dedupe-key decision (LEAD's unique is on websiteDomain) and is deferred.
+- `CAMPAIGN.scheduleWindow` JSON shape (M3 ruling): `{ days: [0-6 = Sun-Sat], startHour: 0-23, endHour: 1-24, timezone?: IANA }` — timezone falls back to `TENANT.timezone`.
+- `{{offer_price}}` template variable (M3 ruling): renders from `CAMPAIGN.offerText` in v1 — no separate price column.
+- Per-account daily send caps (M3 ruling): the cap day boundary is the TENANT's timezone (matches T-4's "today/tomorrow" semantics), enforced via Redis counters (non-negotiable rule 4).
 - One active enrollment per lead: partial UNIQUE index on ENROLLMENT(leadId) WHERE status IN ('QUEUED','ACTIVE').
 - All FKs ON DELETE: tenant-owned rows CASCADE from TENANT (soft-delete first, purge job later); MESSAGE→ENROLLMENT RESTRICT.
 
