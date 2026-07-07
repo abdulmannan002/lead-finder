@@ -9,6 +9,7 @@ import { SOURCING_FETCH } from '../src/modules/sourcing/apify.client';
 import { ENRICHMENT_FETCH } from '../src/modules/enrichment/site-scraper';
 import { ANTHROPIC_CLIENT_FACTORY } from '../src/modules/enrichment/anthropic.client';
 import { OutboundMail, SmtpCredentials, SMTP_TRANSPORT_FACTORY } from '../src/modules/integrations/smtp';
+import { NOTIFICATIONS_FETCH } from '../src/modules/notifications/telegram.client';
 import { InMemoryQuotaCounter, QUOTA_COUNTER } from '../src/common/counters/quota-counter';
 import {
   AI_PERSONALIZE_QUEUE,
@@ -93,6 +94,11 @@ export interface FakeSmtp {
   failNextSendWith?: Error & { responseCode?: number };
 }
 
+export interface FakeTelegram {
+  /** Every alert pushed through the fake Telegram API. */
+  sent: { botToken: string; chatId: string; text: string }[];
+}
+
 /** Lead-site + Hunter stub for the enrichment pipeline. */
 function fakeEnrichmentFetch(web: FakeWeb): typeof fetch {
   return (async (url: any) => {
@@ -127,6 +133,7 @@ export async function createApp(): Promise<{
   fakeWeb: FakeWeb;
   fakeAnthropic: FakeAnthropic;
   fakeSmtp: FakeSmtp;
+  fakeTelegram: FakeTelegram;
 }> {
   const outbox: SentMail[] = [];
   const queued: EnqueuedJob[] = [];
@@ -137,6 +144,7 @@ export async function createApp(): Promise<{
   const fakeWeb: FakeWeb = { pages: {}, hunterEmails: [] };
   const fakeAnthropic: FakeAnthropic = { reply: 'GENERIC', calls: [] };
   const fakeSmtp: FakeSmtp = { sent: [] };
+  const fakeTelegram: FakeTelegram = { sent: [] };
   let smtpSeq = 0;
 
   const record = (sink: EnqueuedJob[]) => ({
@@ -168,6 +176,17 @@ export async function createApp(): Promise<{
     .useValue(fakeEnrichmentFetch(fakeWeb))
     .overrideProvider(QUOTA_COUNTER)
     .useValue(new InMemoryQuotaCounter())
+    .overrideProvider(NOTIFICATIONS_FETCH)
+    .useValue((async (url: any, init: any) => {
+      const match = /bot([^/]+)\/sendMessage/.exec(String(url));
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      fakeTelegram.sent.push({
+        botToken: match?.[1] ?? '',
+        chatId: String(body.chat_id ?? ''),
+        text: String(body.text ?? ''),
+      });
+      return { ok: true, status: 200, json: async () => ({ ok: true }) } as Response;
+    }) as typeof fetch)
     .overrideProvider(SMTP_TRANSPORT_FACTORY)
     .useValue((creds: SmtpCredentials) => ({
       // Hosts containing "bad" fail verification (bad host/credentials).
@@ -218,6 +237,7 @@ export async function createApp(): Promise<{
     fakeWeb,
     fakeAnthropic,
     fakeSmtp,
+    fakeTelegram,
   };
 }
 

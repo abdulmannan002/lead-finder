@@ -150,6 +150,7 @@ model Tenant {
   messages      Message[]
   dailyMetrics  DailyMetric[]
   activityLogs  ActivityLog[]
+  notifications Notification[]
 }
 
 /// GLOBAL identity — deliberately NO tenantId. Tenancy and roles live on
@@ -421,6 +422,20 @@ model DailyMetric {
   errors       Int      @default(0)
 
   @@unique([tenantId, day])
+}
+
+/// FR-8.4 in-app notification feed (M4 ruling — model added to docs/02).
+model Notification {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      String // e.g. reply, account_error
+  payload   Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, readAt])
 }
 
 model ActivityLog {

@@ -16,6 +16,7 @@ erDiagram
   TENANT ||--o{ LEAD : owns
   TENANT ||--o{ CAMPAIGN : runs
   TENANT ||--o{ DAILY_METRIC : accrues
+  TENANT ||--o{ NOTIFICATION : alerts
   TENANT ||--o{ ACTIVITY_LOG : records
   SCRAPE_QUERY ||--o{ SCRAPE_RUN : executes
   SCRAPE_RUN ||--o{ LEAD : produced
@@ -175,6 +176,14 @@ erDiagram
     int replies
     int bounces
     int errors
+  }
+  NOTIFICATION {
+    uuid id PK
+    uuid tenantId FK
+    string type
+    json payload
+    timestamp readAt
+    timestamp createdAt
   }
   ACTIVITY_LOG {
     uuid id PK
