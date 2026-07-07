@@ -16,11 +16,27 @@ import {
   PutStepsDto,
   UpdateCampaignDto,
 } from './dto/campaigns.dto';
+import { CampaignOpsService } from './campaign-ops.service';
 import { CampaignsService } from './campaigns.service';
 
 @Controller('campaigns')
 export class CampaignsController {
-  constructor(private readonly campaigns: CampaignsService) {}
+  constructor(
+    private readonly campaigns: CampaignsService,
+    private readonly ops: CampaignOpsService,
+  ) {}
+
+  /** docs/04 — render step 1 for a sample lead → send to own address. */
+  @Post(':id/test-send')
+  testSend(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ops.testSend(id);
+  }
+
+  /** FR-9.4 — per-step sent/replies + reply rate. */
+  @Get(':id/stats')
+  stats(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ops.stats(id);
+  }
 
   @Get()
   list(@Query() dto: ListCampaignsDto) {
