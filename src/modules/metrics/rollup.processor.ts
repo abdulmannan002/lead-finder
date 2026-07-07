@@ -4,6 +4,7 @@ import { runWithContext } from '../../common/context/request-context';
 // (docs/02 §5); per-tenant counting runs inside that tenant's context.
 import { SystemPrismaService } from '../../common/prisma/system-prisma.service';
 import type { TenantJobData } from '../../common/queues/job-queue';
+import { TenantDeletionService } from '../tenants/tenant-deletion.service';
 import { MetricsService } from './metrics.service';
 
 export interface RollupJobData extends TenantJobData {
@@ -22,6 +23,7 @@ export class RollupProcessor {
   constructor(
     private readonly system: SystemPrismaService,
     private readonly metrics: MetricsService,
+    private readonly tenantDeletion: TenantDeletionService,
   ) {}
 
   async process(_data: RollupJobData): Promise<void> {
@@ -51,6 +53,10 @@ export class RollupProcessor {
       });
     }
     this.logger.log(`rolled up ${tenants.length} tenants`);
+
+    // Daily maintenance rides along: FR-10.3 30-day hard purge.
+    const purged = await this.tenantDeletion.purgeExpired();
+    if (purged > 0) this.logger.warn(`purged ${purged} deleted tenants`);
   }
 }
 

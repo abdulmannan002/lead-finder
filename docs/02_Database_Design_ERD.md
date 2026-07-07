@@ -231,6 +231,7 @@ erDiagram
 - `NOTIFICATION` (M4 ruling): tenant-scoped in-app alert feed (FR-8.4); index (tenantId, createdAt) and (tenantId, readAt).
 - `EMAIL_ACCOUNT.inboxCheckpoint` (M4 ruling): the docs/03 §4 per-account inbox.poll checkpoint ("uidValidity:lastSeenUid" for IMAP). SMTP accounts may carry optional imapHost/imapPort inside the encrypted credentials blob (defaults: SMTP host, 993).
 - `ENROLLMENT.replyOutcome` (CALL_BOOKED/WON/LOST) + `replyHandledAt` (M4 ruling): reply-inbox triage per docs/04 PATCH /replies/:enrollmentId; "won" feeds the funnel.
+- `TENANT.deletedAt` (M5 ruling): FR-10.3 soft-delete timestamp; the daily maintenance sweep hard-purges tenants deleted 30+ days ago (messages first, then the tenant cascade, honoring MESSAGE→ENROLLMENT RESTRICT).
 - One active enrollment per lead: partial UNIQUE index on ENROLLMENT(leadId) WHERE status IN ('QUEUED','ACTIVE').
 - All FKs ON DELETE: tenant-owned rows CASCADE from TENANT (soft-delete first, purge job later); MESSAGE→ENROLLMENT RESTRICT.
 

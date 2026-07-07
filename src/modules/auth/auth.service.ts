@@ -66,9 +66,10 @@ export class AuthService {
     if (!user) throw invalid;
     if (!(await argon2.verify(user.passwordHash, password))) throw invalid;
 
-    const membership = user.memberships[0];
+    // Suspended/deleted workspaces are not a valid landing spot (FR-10.3).
+    const membership = user.memberships.find((m) => m.tenant.status === 'ACTIVE');
     if (!membership) {
-      throw new ForbiddenException({ code: 'NO_WORKSPACE', message: 'No workspace membership' });
+      throw new ForbiddenException({ code: 'NO_WORKSPACE', message: 'No active workspace membership' });
     }
 
     const pair = await this.issueSession(user.id, membership.tenantId, membership.role);
@@ -94,8 +95,9 @@ export class AuthService {
 
     const membership = await this.system.membership.findUnique({
       where: { userId_tenantId: { userId: payload.sub, tenantId: payload.tenantId } },
+      include: { tenant: true },
     });
-    if (!membership) {
+    if (!membership || membership.tenant.status !== 'ACTIVE') {
       throw new UnauthorizedException({ code: 'MEMBERSHIP_GONE', message: 'No longer a member of this workspace' });
     }
 
