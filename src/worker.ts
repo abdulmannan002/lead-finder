@@ -12,6 +12,7 @@ import { PersonalizeProcessor } from './modules/enrichment/personalize.processor
 import { SendDispatchProcessor } from './modules/delivery/send-dispatch.processor';
 import { SendPlanProcessor } from './modules/delivery/send-plan.processor';
 import { InboxPollProcessor } from './modules/delivery/inbox-poll.processor';
+import { RollupProcessor } from './modules/metrics/rollup.processor';
 import { BullJobQueue } from './common/queues/job-queue';
 
 interface JobProcessor {
@@ -29,6 +30,7 @@ const PROCESSORS: Array<{ queue: string; provider: Type<JobProcessor> }> = [
   { queue: QUEUE_NAMES.SEND_PLAN, provider: SendPlanProcessor },
   { queue: QUEUE_NAMES.SEND_DISPATCH, provider: SendDispatchProcessor },
   { queue: QUEUE_NAMES.INBOX_POLL, provider: InboxPollProcessor },
+  { queue: QUEUE_NAMES.ROLLUP_DAILY, provider: RollupProcessor },
 ];
 
 /** docs/03 §4 — the repeatable crons. */
@@ -52,6 +54,14 @@ async function registerRepeatables() {
     'batch',
     { tenantId: '', batch: true },
     { jobId: 'inbox-poll-scan', repeat: { every: 5 * 60 * 1000 } },
+  );
+  // rollup.daily hourly — recomputes "today" per tenant tz; the run
+  // nearest midnight finalizes the day (docs/03 §4 cron 23:55 semantics).
+  const rollup = new BullJobQueue(QUEUE_NAMES.ROLLUP_DAILY);
+  await rollup.add(
+    'rollup',
+    { tenantId: '', batch: true },
+    { jobId: 'rollup-daily', repeat: { every: 60 * 60 * 1000 } },
   );
 }
 
