@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { MessagesController } from './messages.controller';
 import { SendDispatchProcessor } from './send-dispatch.processor';
 import { SendPlanProcessor } from './send-plan.processor';
 
@@ -7,6 +8,7 @@ import { SendPlanProcessor } from './send-plan.processor';
 // inbox watcher + reply matcher arrive in M4
 @Module({
   imports: [IntegrationsModule],
+  controllers: [MessagesController],
   providers: [SendPlanProcessor, SendDispatchProcessor],
   exports: [SendPlanProcessor, SendDispatchProcessor],
 })
