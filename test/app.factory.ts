@@ -10,6 +10,8 @@ import { ENRICHMENT_FETCH } from '../src/modules/enrichment/site-scraper';
 import { ANTHROPIC_CLIENT_FACTORY } from '../src/modules/enrichment/anthropic.client';
 import { OutboundMail, SmtpCredentials, SMTP_TRANSPORT_FACTORY } from '../src/modules/integrations/smtp';
 import { NOTIFICATIONS_FETCH } from '../src/modules/notifications/telegram.client';
+import { INBOX_FETCHER } from '../src/modules/delivery/inbox-fetcher';
+import { InboundMessage } from '../src/modules/delivery/inbound-classify';
 import { InMemoryQuotaCounter, QUOTA_COUNTER } from '../src/common/counters/quota-counter';
 import {
   AI_PERSONALIZE_QUEUE,
@@ -99,6 +101,15 @@ export interface FakeTelegram {
   sent: { botToken: string; chatId: string; text: string }[];
 }
 
+export interface FakeInbox {
+  /** Pending messages per account user (creds.user); consumed on fetch. */
+  pending: Map<string, InboundMessage[]>;
+  /** creds.user values whose next fetch should fail with an auth error. */
+  failAuthFor: Set<string>;
+  /** Fetch counter per user, drives the fake checkpoint. */
+  fetches: number;
+}
+
 /** Lead-site + Hunter stub for the enrichment pipeline. */
 function fakeEnrichmentFetch(web: FakeWeb): typeof fetch {
   return (async (url: any) => {
@@ -134,6 +145,7 @@ export async function createApp(): Promise<{
   fakeAnthropic: FakeAnthropic;
   fakeSmtp: FakeSmtp;
   fakeTelegram: FakeTelegram;
+  fakeInbox: FakeInbox;
 }> {
   const outbox: SentMail[] = [];
   const queued: EnqueuedJob[] = [];
@@ -145,6 +157,7 @@ export async function createApp(): Promise<{
   const fakeAnthropic: FakeAnthropic = { reply: 'GENERIC', calls: [] };
   const fakeSmtp: FakeSmtp = { sent: [] };
   const fakeTelegram: FakeTelegram = { sent: [] };
+  const fakeInbox: FakeInbox = { pending: new Map(), failAuthFor: new Set(), fetches: 0 };
   let smtpSeq = 0;
 
   const record = (sink: EnqueuedJob[]) => ({
@@ -176,6 +189,22 @@ export async function createApp(): Promise<{
     .useValue(fakeEnrichmentFetch(fakeWeb))
     .overrideProvider(QUOTA_COUNTER)
     .useValue(new InMemoryQuotaCounter())
+    .overrideProvider(INBOX_FETCHER)
+    .useValue({
+      fetchNew: async (creds: SmtpCredentials, checkpoint: string | null) => {
+        if (fakeInbox.failAuthFor.has(creds.user)) {
+          fakeInbox.failAuthFor.delete(creds.user);
+          throw new Error('Invalid credentials (authentication failed)');
+        }
+        const messages = fakeInbox.pending.get(creds.user) ?? [];
+        fakeInbox.pending.set(creds.user, []);
+        fakeInbox.fetches++;
+        return {
+          messages,
+          checkpoint: messages.length > 0 ? `1:${fakeInbox.fetches}` : checkpoint,
+        };
+      },
+    })
     .overrideProvider(NOTIFICATIONS_FETCH)
     .useValue((async (url: any, init: any) => {
       const match = /bot([^/]+)\/sendMessage/.exec(String(url));
@@ -238,6 +267,7 @@ export async function createApp(): Promise<{
     fakeAnthropic,
     fakeSmtp,
     fakeTelegram,
+    fakeInbox,
   };
 }
 

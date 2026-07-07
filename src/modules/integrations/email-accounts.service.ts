@@ -38,6 +38,8 @@ export class EmailAccountsService {
       user: dto.user,
       pass: dto.pass,
       secure: dto.secure,
+      imapHost: dto.imapHost,
+      imapPort: dto.imapPort,
     };
     try {
       await this.transportFactory(creds).verify();
