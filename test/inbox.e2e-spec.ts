@@ -6,7 +6,7 @@ import { InboundMessage } from '../src/modules/delivery/inbound-classify';
 import { InboxPollProcessor } from '../src/modules/delivery/inbox-poll.processor';
 import { SendDispatchProcessor } from '../src/modules/delivery/send-dispatch.processor';
 import { SendPlanProcessor } from '../src/modules/delivery/send-plan.processor';
-import { createApp, EnqueuedJob, FakeInbox, FakeSmtp, FakeTelegram } from './app.factory';
+import { createApp, EnqueuedJob, FakeInbox, FakeTelegram } from './app.factory';
 
 /**
  * Reply detection end-to-end (FR-8.x): T-6 reply stops the sequence,
@@ -17,7 +17,6 @@ describe('Inbox watcher (e2e)', () => {
   let app: INestApplication;
   let server: any;
   let system: SystemPrismaService;
-  let fakeSmtp: FakeSmtp;
   let fakeInbox: FakeInbox;
   let fakeTelegram: FakeTelegram;
   let dispatchQueued: EnqueuedJob[];
@@ -92,7 +91,7 @@ describe('Inbox watcher (e2e)', () => {
   }
 
   beforeAll(async () => {
-    ({ app, fakeSmtp, fakeInbox, fakeTelegram, dispatchQueued } = await createApp());
+    ({ app, fakeInbox, fakeTelegram, dispatchQueued } = await createApp());
     server = app.getHttpServer();
     system = app.get(SystemPrismaService);
     plan = app.get(SendPlanProcessor);
