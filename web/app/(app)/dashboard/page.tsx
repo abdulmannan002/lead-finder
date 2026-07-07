@@ -11,6 +11,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { PageHeader } from '@/components/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
@@ -105,12 +107,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {session ? `${session.tenant.name} — overview` : 'Dashboard'}
-        </h1>
-        <p className="text-sm text-muted-foreground">Last 30 days.</p>
-      </div>
+      <PageHeader
+        title={session ? session.tenant.name : 'Dashboard'}
+        description="Pipeline health across the last 30 days."
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Scorecard label="Leads ready" value={pipeline.READY ?? 0} />
@@ -185,10 +185,12 @@ export default function DashboardPage() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`flex items-start gap-2 rounded-md border p-2 text-sm ${n.readAt ? 'opacity-60' : ''}`}
+              className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${n.readAt ? 'opacity-60' : ''}`}
             >
-              <span className="rounded bg-muted px-1 text-[10px] uppercase">{n.type}</span>
-              <span className="flex-1 whitespace-pre-wrap">{n.payload?.text ?? ''}</span>
+              <Badge variant={n.type === 'reply' ? 'info' : n.type === 'account_error' ? 'destructive' : 'neutral'}>
+                {n.type.replace('_', ' ')}
+              </Badge>
+              <span className="flex-1 whitespace-pre-wrap leading-relaxed">{n.payload?.text ?? ''}</span>
               {!n.readAt && (
                 <Button variant="ghost" className="h-6 px-2 text-xs" onClick={() => void markRead(n.id)}>
                   Mark read
