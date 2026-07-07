@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { Response } from 'express';
 
 const STATUS_CODES: Record<number, string> = {
@@ -52,6 +53,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       message = process.env.NODE_ENV === 'production' ? message : exception.message;
+    }
+
+    // NFR-6 — unexpected failures go to Sentry when configured.
+    if (status >= 500 && process.env.SENTRY_DSN) {
+      Sentry.captureException(exception);
     }
 
     res.status(status).json({
