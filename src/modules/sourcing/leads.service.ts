@@ -1,8 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { LeadStatus, Prisma } from '@prisma/client';
+import { toCsv } from '../../common/csv';
+import { AuthUser } from '../../common/guards/current-user.decorator';
 import { pageParams, paged } from '../../common/pagination';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { TenantCreateData } from '../../common/prisma/tenant-scope';
 import { BulkAction, ListLeadsDto, UpdateLeadDto } from './dto/leads.dto';
+
+const EXPORT_CAP = 50_000;
 
 /** Shared filter builder — the enrollment filter reuses the exact list semantics. */
 export function buildLeadWhere(dto: ListLeadsDto): Prisma.LeadWhereInput {
@@ -45,6 +50,36 @@ export class LeadsService {
     const lead = await this.prisma.client.lead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Lead not found' });
     return lead;
+  }
+
+  /** FR-10.2 — same filters as list; exports are audited (FR-10.1). */
+  async exportCsv(dto: ListLeadsDto, actor: AuthUser): Promise<string> {
+    const rows = await this.prisma.client.lead.findMany({
+      where: buildLeadWhere(dto),
+      orderBy: { createdAt: 'desc' },
+      take: EXPORT_CAP,
+    });
+    await this.prisma.client.activityLog.create({
+      data: {
+        action: 'EXPORT /leads',
+        userId: actor.userId,
+        payload: { rows: rows.length },
+      } satisfies TenantCreateData<Prisma.ActivityLogUncheckedCreateInput> as unknown as Prisma.ActivityLogUncheckedCreateInput,
+    });
+    return toCsv(rows, [
+      { header: 'company', value: (l) => l.company },
+      { header: 'websiteDomain', value: (l) => l.websiteDomain },
+      { header: 'email', value: (l) => l.email },
+      { header: 'emailSource', value: (l) => l.emailSource },
+      { header: 'emailConfidence', value: (l) => l.emailConfidence },
+      { header: 'phone', value: (l) => l.phone },
+      { header: 'city', value: (l) => l.city },
+      { header: 'category', value: (l) => l.category },
+      { header: 'status', value: (l) => l.status },
+      { header: 'firstLine', value: (l) => l.firstLine },
+      { header: 'notes', value: (l) => l.notes },
+      { header: 'createdAt', value: (l) => l.createdAt },
+    ]);
   }
 
   /**

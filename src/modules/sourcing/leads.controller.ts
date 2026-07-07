@@ -8,10 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { AuthUser, CurrentUser } from '../../common/guards/current-user.decorator';
 import { EnrollmentsService } from '../campaigns/enrollments.service';
 import { CsvImportService, CsvMapping } from './csv-import.service';
 import { BulkLeadsDto, ListLeadsDto, UpdateLeadDto } from './dto/leads.dto';
@@ -47,6 +50,20 @@ export class LeadsController {
   @Get()
   list(@Query() dto: ListLeadsDto) {
     return this.leads.list(dto);
+  }
+
+  /** FR-10.2 — CSV export with the same filters as the list. Audited. */
+  @Get('export')
+  async export(
+    @CurrentUser() user: AuthUser,
+    @Query() dto: ListLeadsDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.leads.exportCsv(dto, user);
+    res
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', 'attachment; filename="leads.csv"')
+      .send(csv);
   }
 
   @Get(':id')
