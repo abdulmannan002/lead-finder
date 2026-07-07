@@ -1,21 +1,34 @@
 # Progress
 
-## Milestone M4 — Replies & metrics: COMPLETE ✅
+## Milestone M5 — Hardening & pilot: CODE COMPLETE ✅ (pilot is a 2-week human activity)
 
-### Done in M4
-- **Notifications (FR-8.4/FR-2.4)**: tenant-scoped in-app feed (`Notification` model per ruling) with unread counter + mark-read; Telegram alerts via the tenant's bot (vault key + chatId), best-effort so alert failures never break pipelines.
-- **Inbox watcher (FR-8.1–8.3)**: `inbox.poll` 5-min repeatable, per-account IMAP (imapflow behind a DI token, `inboxCheckpoint` on the account, optional imapHost/imapPort in SMTP creds); pure classifier separates genuine replies from auto-replies/OOO (**T-7**) and DSN bounces (**T-8**); matching by In-Reply-To/References → `providerMsgId`, sender fallback; genuine reply → REPLIED + replyText + inbound Message + immediate alert (**T-6**); opt-out intent → permanent DO_NOT_CONTACT (FR-7.6); IMAP auth failure → account ERROR + notification, sends pause (**T-11**).
-- **Reply inbox (FR-9.3)**: `GET /replies` (unhandled filter, lead/campaign context), `PATCH /replies/:id` outcome CALL_BOOKED/WON/LOST + note (ReplyOutcome columns per ruling).
-- **Metrics (FR-9.1/9.5)**: hourly `rollup.daily` recomputing today per tenant tz (idempotent upsert on (tenantId, day), idle tenants skipped); `GET /metrics/daily|overview|funnel` (funnel: lead → enrolled → contacted → replied → won).
-- **Web**: dashboard with scorecards, recharts sends/replies/bounces chart, funnel bars, notifications card; reply inbox with one-click triage.
-- **Acceptance**: exit criterion e2e — reply → alert inside the same poll pass (« 1 min), REPLIED, step 2 never sends, reply appears in the inbox, day rolls up. **129 unit + 122 e2e across 21 suites — all green.**
+All five build milestones (M0–M5) are code-complete. **129 unit + 137 e2e
+tests across 25 suites — all green.** Acceptance tests T-1 through T-12
+are automated (T-2..T-12 in their milestone suites; T-1 isolation runs
+against every endpoint family).
 
-### Next (M5 — hardening & pilot — awaiting task-breakdown approval)
-- Audit log interceptor, CSV exports, rate limits, Sentry, bull-board, backups doc, remaining e2e polish. Exit: SignX dogfoods its logistics campaign for 2 weeks.
+### Done in M5
+- **Audit (FR-10.1)**: global interceptor logs every authenticated mutation (acting user, route pattern, redacted payload — secrets never stored); `GET /audit` for Owner/Admin with userId/action/date filters; exports also audited.
+- **Exports (FR-10.2)**: `GET /leads/export` + `GET /messages/export` (docs/04 addition per ruling), RFC-4180, filter-aware, 50k cap.
+- **Tenant deletion (FR-10.3)**: `DELETE /tenant` (OWNER + password re-entry) → soft delete with sessions revoked and logins blocked; daily sweep hard-purges after 30 days (FK-safe order).
+- **Hardening (NFR-2/6/8)**: rate limits (API 100/min/tenant, auth 5/min/IP/endpoint), env-gated Sentry with 5xx capture, bull-board on the worker behind basic auth, nightly backup script with retention + restore drill.
+- **docs/06_Dogfood_Runbook.md**: the step-by-step pilot script (boot, keys, leads, campaign, daily/weekly ops, day-14 exit review).
 
-### Known issues / notes
-- Gmail OAuth still deferred to pilot (needs a Google Cloud app).
-- 5-min reply latency bound comes from the poll cadence; IMAP IDLE or Gmail push can tighten it post-pilot.
-- `emailsFound` daily metric is an approximation (finder-attributed emails whose lead changed that day).
-- Manual checks pending real credentials: M1 Apify run, M3 mailhog threading, M4 real-mailbox reply loop.
-- Local dev remains Docker-less: embedded UTF8 PG via `TEST_DATABASE_URL`; queue producers stubbed in tests, processors driven inline.
+### The pilot itself (human, 2 weeks)
+Follow docs/06 with real keys (Apify/Hunter/Anthropic/Telegram/SMTP+IMAP)
+and Docker (or managed PG/Redis). This also covers the deferred manual
+checks from M1 (real Apify run) and M3/M4 (real mailbox threading/replies).
+
+### Post-pilot backlog (Phase 2 candidates + deferrals)
+- Gmail OAuth connect (needs a Google Cloud app)
+- IMAP IDLE / Gmail push to beat the 5-min reply latency
+- 2FA endpoints (FR-1.5), lead ARCHIVED-after-90-days cron, message body
+  compression (docs/02 §6), Redis-backed throttler storage for multi-instance
+- FR-3.5 "keep no-website leads" dedupe-key decision
+- Stripe billing, warmup integration, in-app composer (docs/05 Phase 2)
+
+### Environment note
+Local dev on this machine is Docker-less: e2e runs against an embedded
+UTF8 PostgreSQL 16 via `TEST_DATABASE_URL`; queue producers are stubbed
+in tests with processors driven inline exactly as the worker runs them.
+CI/machines with Docker use testcontainers + compose unchanged.
