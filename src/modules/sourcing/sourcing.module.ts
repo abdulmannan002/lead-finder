@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CampaignsModule } from '../campaigns/campaigns.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { ApifyClient, SOURCING_FETCH } from './apify.client';
 import { CsvImportService } from './csv-import.service';
@@ -10,7 +11,7 @@ import { SourcingController } from './sourcing.controller';
 
 // scrape queries, runs, Apify client, lead ingestion + dedupe, CSV import (docs/03 §3)
 @Module({
-  imports: [IntegrationsModule],
+  imports: [IntegrationsModule, CampaignsModule],
   controllers: [SourcingController, LeadsController],
   providers: [
     QueriesService,
