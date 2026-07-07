@@ -1,5 +1,33 @@
 # Progress
 
+## Milestone M6 — Marketplace pivot (docs/07): IN PROGRESS
+
+Pivot decision (owner-approved): evolve into a B2B connection
+marketplace for underserved markets. No fake data published; scraped
+data stays a private invite list. Budget <$100/yr (Oracle free tier).
+
+### Done (branches merged to main)
+1. **feat/business-profiles (MP-1/2/3)** — BusinessProfile model,
+   `GET/PUT /business-profile` + AI description via the PLATFORM
+   Anthropic key, public directory + profile pages by slug (published
+   only, cross-tenant read BY DESIGN), email-verification badge
+   (`/auth/verify-email/*`). 7 e2e tests.
+2. **feat/requests (MP-4/5/6)** — MarketRequest/MarketResponse models,
+   `POST /requests` with category+keyword matching (`matchScore`) that
+   notifies matched providers in THEIR tenant context, provider lead
+   feed `GET /requests/matched`, one-offer-per-provider
+   `POST /requests/:id/respond` (409 on dupes), buyer offer comparison
+   with contact reveal `GET /requests/:id/responses`, close. 5 unit +
+   6 e2e tests.
+
+### Next
+3. **feat/marketplace-web** — public landing/directory/profile pages,
+   request wizard, "My leads / My requests" screens.
+4. **feat/growth (MP-7)** — invitation sequences to the private scraped
+   list via the existing delivery engine; invited→registered tracking.
+5. **feat/deploy-oracle** — production compose (API/worker/PG/Redis/
+   Caddy), Oracle Always-Free runbook, backups to R2, CI.
+
 ## Milestone M5 — Hardening & pilot: CODE COMPLETE ✅ (pilot is a 2-week human activity)
 
 All five build milestones (M0–M5) are code-complete. **129 unit + 137 e2e
