@@ -68,8 +68,8 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-Milestone: M4 COMPLETE (T-6/T-7/T-8/T-11 automated; exit criterion
-verified: reply → immediate alert, REPLIED, no further sends; 129 unit
-+ 122 e2e green). Manual checks pending real credentials: M1 Apify run,
-M3 mailhog threading, M4 real-mailbox reply loop. M5 not started —
-propose a task breakdown and wait for approval before beginning.
+ALL MILESTONES M0–M5 CODE COMPLETE. T-1..T-12 automated; 129 unit +
+137 e2e green across 25 suites. Remaining: the 2-week dogfood pilot
+(docs/06_Dogfood_Runbook.md) with real credentials, which also covers
+the deferred manual checks (real Apify run, real mailbox threading and
+replies). Post-pilot backlog in PROGRESS.md.
