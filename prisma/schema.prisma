@@ -328,6 +328,13 @@ model Lead {
   firstLine     String?
   status        LeadStatus   @default(NEW)
   notes         String?
+  // MP-7 growth: private invite tracking — the token is minted when an
+  // {{invite_link}} step is dispatched; registration is stamped when a
+  // signup arrives with the matching ?ref= token.
+  inviteToken        String?   @unique
+  invitedAt          DateTime?
+  registeredAt       DateTime?
+  registeredTenantId String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 

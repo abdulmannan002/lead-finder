@@ -20,6 +20,10 @@ describe('findUnknownVariables (T-12)', () => {
   it('ignores non-variable braces', () => {
     expect(findUnknownVariables('code sample: {notAVar} and {{}}')).toEqual([]);
   });
+
+  it('accepts the MP-7 invite_link variable', () => {
+    expect(findUnknownVariables('Claim your free listing: {{invite_link}}')).toEqual([]);
+  });
 });
 
 describe('renderTemplate', () => {

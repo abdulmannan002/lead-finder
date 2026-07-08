@@ -39,6 +39,13 @@ engine as an internal growth tool and future premium feature.
   existing rate limits + one-response-per-request unique.
 - MP-7 Growth: invitation sequences to the private scraped list via the
   existing delivery engine; track invited→registered conversion.
+  Mechanics: a new `{{invite_link}}` step variable renders a personalized
+  signup link (`WEB_APP_URL/signup?ref=<token>`); the per-lead token is
+  minted at DISPATCH time (so "invited" = an email actually went out) and
+  stored on the lead with `invitedAt`. Signup accepts an optional `ref`
+  and stamps `registeredAt`/`registeredTenantId` on the matching lead
+  (best effort, never blocks signup, first registration wins).
+  `GET /growth/stats` → { invited, registered, conversionPct } per tenant.
 
 ## Tenancy note
 A Tenant now doubles as a "business account". BusinessProfile is

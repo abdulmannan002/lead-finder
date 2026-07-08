@@ -27,7 +27,12 @@ export class AuthService {
     private readonly tokens: TokenService,
   ) {}
 
-  async signup(email: string, password: string, tenantName: string): Promise<AuthResult> {
+  async signup(
+    email: string,
+    password: string,
+    tenantName: string,
+    ref?: string,
+  ): Promise<AuthResult> {
     const existing = await this.system.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException({
@@ -48,8 +53,27 @@ export class AuthService {
       return { user, tenant };
     });
 
+    if (ref) await this.attributeInvite(ref, tenant.id);
+
     const pair = await this.issueSession(user.id, tenant.id, UserRole.OWNER);
     return this.result(user, tenant, UserRole.OWNER, pair);
+  }
+
+  /**
+   * MP-7 — invited→registered conversion. The system client is BY DESIGN:
+   * the lead lives in the INVITING tenant, the signup has no context yet.
+   * A bad/duplicate token never fails the signup — attribution is best
+   * effort, first registration wins.
+   */
+  private async attributeInvite(ref: string, registeredTenantId: string): Promise<void> {
+    try {
+      await this.system.lead.updateMany({
+        where: { inviteToken: ref, registeredAt: null },
+        data: { registeredAt: new Date(), registeredTenantId },
+      });
+    } catch {
+      /* attribution must never block a signup */
+    }
   }
 
   async login(email: string, password: string): Promise<AuthResult> {

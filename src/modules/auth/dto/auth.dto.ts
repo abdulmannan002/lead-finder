@@ -1,4 +1,12 @@
-import { IsEmail, IsNotEmpty, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class SignupDto {
   @IsEmail()
@@ -13,6 +21,12 @@ export class SignupDto {
   @IsNotEmpty()
   @MaxLength(80)
   tenantName!: string;
+
+  /** MP-7 — opaque invite token from a growth email's signup link. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  ref?: string;
 }
 
 export class LoginDto {
