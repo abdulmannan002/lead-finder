@@ -31,7 +31,7 @@ export class AuthController {
   @Public()
   @Post('signup')
   signup(@Body() dto: SignupDto) {
-    return this.auth.signup(dto.email, dto.password, dto.tenantName);
+    return this.auth.signup(dto.email, dto.password, dto.tenantName, dto.ref);
   }
 
   @Public()

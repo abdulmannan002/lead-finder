@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   AccountStatus,
@@ -88,6 +89,7 @@ export class SendDispatchProcessor {
       city: lead.city,
       offer_price: campaign.offerText, // M3 ruling
       signature: account.signature,
+      invite_link: await this.inviteLink(lead, step.subjectTpl + step.bodyTpl),
     };
     let subject = renderTemplate(step.subjectTpl, vars);
     const body = renderTemplate(step.bodyTpl, vars);
@@ -177,6 +179,28 @@ export class SendDispatchProcessor {
       // claim stays until it goes stale, so plan won't double-book.
       throw err;
     }
+  }
+
+  /**
+   * MP-7 — mints the lead's marketplace invite token on first use and
+   * returns the personalized signup link. Only runs when the step
+   * actually uses {{invite_link}}, so ordinary outreach never mints.
+   */
+  private async inviteLink(
+    lead: { id: string; inviteToken: string | null },
+    templates: string,
+  ): Promise<string | null> {
+    if (!templates.includes('invite_link')) return null;
+    let token = lead.inviteToken;
+    if (!token) {
+      token = randomBytes(12).toString('base64url');
+      await this.prisma.client.lead.update({
+        where: { id: lead.id },
+        data: { inviteToken: token, invitedAt: new Date() },
+      });
+    }
+    const webApp = process.env.WEB_APP_URL ?? 'http://localhost:3000';
+    return `${webApp}/signup?ref=${token}`;
   }
 
   /** Marks a planned message dead and releases the claim for future planning. */

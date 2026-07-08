@@ -7,6 +7,7 @@ export const ALLOWED_VARIABLES = [
   'city',
   'offer_price', // maps to Campaign.offerText (M3 ruling)
   'signature',
+  'invite_link', // MP-7 — per-lead marketplace signup link (docs/07)
 ] as const;
 
 export type TemplateVariables = Partial<Record<(typeof ALLOWED_VARIABLES)[number], string | null>>;

@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,10 @@ import { Label } from '@/components/ui/label';
 import { api, ApiError } from '@/lib/api';
 import { saveSession, StoredSession } from '@/lib/auth';
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  // MP-7 — invite links carry ?ref=<token> for invited→registered tracking.
+  const ref = useSearchParams().get('ref');
   const [tenantName, setTenantName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +27,7 @@ export default function SignupPage() {
     try {
       const session = await api<StoredSession>('/auth/signup', {
         method: 'POST',
-        body: { email, password, tenantName },
+        body: { email, password, tenantName, ...(ref ? { ref } : {}) },
         auth: false,
       });
       saveSession(session);
@@ -91,5 +93,13 @@ export default function SignupPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }
