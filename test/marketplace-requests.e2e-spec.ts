@@ -38,10 +38,13 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
     providerToken = await signup('provider@rfq.test', 'DevHouse Lahore');
     bystanderToken = await signup('bystander@rfq.test', 'Caterers United');
 
+    // Categories deliberately unique to this suite — published profiles
+    // from other suites must never match this request (runInBand shares
+    // one database across suites).
     await putProfile(providerToken, {
       displayName: 'DevHouse Lahore',
-      category: 'Software Development',
-      services: ['POS systems', 'inventory software'],
+      category: 'Solar Installation',
+      services: ['solar panels', 'net metering'],
       city: 'Lahore',
       phone: '+92 42 1234567',
       whatsapp: '+92 300 7654321',
@@ -49,7 +52,7 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
     });
     await putProfile(bystanderToken, {
       displayName: 'Caterers United',
-      category: 'Catering',
+      category: 'Event Catering',
       services: ['wedding catering'],
       city: 'Karachi',
       published: true,
@@ -65,9 +68,9 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
       .post('/api/v1/requests')
       .set('Authorization', `Bearer ${buyerToken}`)
       .send({
-        title: 'Need a POS system for my retail store',
-        description: 'Retail store in Lahore needs POS systems with inventory software support.',
-        category: 'Software Development',
+        title: 'Need solar panels for my retail store',
+        description: 'Retail store in Lahore wants solar panels installed with net metering support.',
+        category: 'Solar Installation',
         city: 'Lahore',
         remoteOk: true,
         budget: 'PKR 200k',
@@ -75,7 +78,7 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
       .expect(201);
     requestId = res.body.id;
     expect(res.body.status).toBe('OPEN');
-    expect(res.body.category).toBe('software development'); // normalized
+    expect(res.body.category).toBe('solar installation'); // normalized
     expect(res.body.notifiedProviders).toBe(1); // DevHouse only, not the caterer
 
     // The alert landed in the PROVIDER's in-app feed…
@@ -83,14 +86,14 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
       .get('/api/v1/notifications')
       .set('Authorization', `Bearer ${providerToken}`)
       .expect(200);
-    expect(JSON.stringify(providerFeed.body.data)).toContain('Need a POS system');
+    expect(JSON.stringify(providerFeed.body.data)).toContain('Need solar panels');
 
     // …and NOT in the bystander's.
     const bystanderFeed = await request(server)
       .get('/api/v1/notifications')
       .set('Authorization', `Bearer ${bystanderToken}`)
       .expect(200);
-    expect(JSON.stringify(bystanderFeed.body.data)).not.toContain('Need a POS system');
+    expect(JSON.stringify(bystanderFeed.body.data)).not.toContain('Need solar panels');
   });
 
   it("the provider's matched-lead feed ranks the request; responded=false (MP-5)", async () => {
@@ -116,7 +119,7 @@ describe('Marketplace requests / RFQ (e2e, MP-4/5/6)', () => {
     await request(server)
       .post(`/api/v1/requests/${requestId}/respond`)
       .set('Authorization', `Bearer ${providerToken}`)
-      .send({ pitch: 'We build POS systems for retailers — live in 2 weeks, local support included.' })
+      .send({ pitch: 'We install solar systems for retailers — live in 2 weeks, local support included.' })
       .expect(201);
 
     await request(server)
