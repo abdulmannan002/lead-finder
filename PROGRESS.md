@@ -1,6 +1,6 @@
 # Progress
 
-## Milestone M6 — Marketplace pivot (docs/07): IN PROGRESS
+## Milestone M6 — Marketplace pivot (docs/07): CODE COMPLETE ✅
 
 Pivot decision (owner-approved): evolve into a B2B connection
 marketplace for underserved markets. No fake data published; scraped
@@ -20,13 +20,26 @@ data stays a private invite list. Budget <$100/yr (Oracle free tier).
    with contact reveal `GET /requests/:id/responses`, close. 5 unit +
    6 e2e tests.
 
-### Next
-3. **feat/marketplace-web** — public landing/directory/profile pages,
-   request wizard, "My leads / My requests" screens.
-4. **feat/growth (MP-7)** — invitation sequences to the private scraped
-   list via the existing delivery engine; invited→registered tracking.
-5. **feat/deploy-oracle** — production compose (API/worker/PG/Redis/
-   Caddy), Oracle Always-Free runbook, backups to R2, CI.
+3. **feat/marketplace-web** — public landing + directory + SEO profile
+   pages (`/market`, `/market/[slug]`, server-rendered), request wizard +
+   offer comparison (`/requests`), provider lead feed (`/market-leads`),
+   listing editor with AI description + publish toggle (`/marketplace`),
+   `/verify-email` confirmation page, sectioned sidebar. Root `/` now
+   lands logged-out visitors on the public marketplace.
+4. **feat/growth (MP-7)** — `{{invite_link}}` template variable (token
+   minted at dispatch = "invited"), signup accepts `?ref=` and stamps
+   `registeredAt`/`registeredTenantId` (best effort, never blocks),
+   `GET /growth/stats` funnel. 4 e2e tests incl. full loop.
+5. **feat/deploy-oracle** — `Dockerfile` (API/worker) + `web/Dockerfile`
+   (Next standalone), `docker-compose.prod.yml` (postgres/redis/api/
+   worker/web/caddy, auto-TLS, migrate-on-boot), `.env.production.example`,
+   backup.sh → optional R2 offsite via rclone, GitHub Actions CI (lint +
+   typecheck + unit + e2e + web build), docs/08 runbook (human steps:
+   Oracle account, VM, DNS; free-tier ledger keeps cost ≈ domain only).
+
+### To go live (human steps, docs/08)
+Oracle account + A1.Flex VM, domain + A record, fill .env.production,
+`docker compose -f docker-compose.prod.yml up -d --build`.
 
 ## Milestone M5 — Hardening & pilot: CODE COMPLETE ✅ (pilot is a 2-week human activity)
 

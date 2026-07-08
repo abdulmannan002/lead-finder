@@ -1,0 +1,94 @@
+# Production stack for one Oracle Always-Free ARM VM (docs/08).
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# Only Caddy is exposed; it terminates TLS (Let's Encrypt, automatic)
+# and routes /api/* to the API and everything else to the web app.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-signx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-signx_reach}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-signx} -d ${POSTGRES_DB:-signx_reach}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    image: signx-reach-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-signx}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-signx_reach}
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Migrations run once per deploy, before the API accepts traffic.
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+
+  worker:
+    image: signx-reach-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-signx}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-signx_reach}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      api:
+        condition: service_started
+    command: ["node", "dist/worker"]
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    image: signx-reach-web
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set in .env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?set in .env.production}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

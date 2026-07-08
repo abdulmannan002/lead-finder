@@ -68,8 +68,10 @@ don't guess.
 - Keep a PROGRESS.md updated: what's done, what's next, known issues.
 
 ## Current status
-ALL MILESTONES M0–M5 CODE COMPLETE. T-1..T-12 automated; 129 unit +
-137 e2e green across 25 suites. Remaining: the 2-week dogfood pilot
-(docs/06_Dogfood_Runbook.md) with real credentials, which also covers
-the deferred manual checks (real Apify run, real mailbox threading and
-replies). Post-pilot backlog in PROGRESS.md.
+ALL MILESTONES M0–M6 CODE COMPLETE. M0–M5: T-1..T-12 automated.
+M6 (marketplace pivot, docs/07_Marketplace_M6.md): business profiles +
+public directory, requests/RFQ + offers, marketplace web UI, growth
+invite tracking (MP-7), production deploy assets + CI (docs/08 runbook).
+135 unit + 154 e2e green across 28 e2e suites. Remaining human steps: the
+dogfood pilot (docs/06) and going live on Oracle (docs/08 §1–4: account,
+VM, domain, .env.production). Backlog in PROGRESS.md.
