@@ -18,5 +18,12 @@ echo "backup written: $FILE ($(du -h "$FILE" | cut -f1))"
 find "$BACKUP_DIR" -name 'signx-reach-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
 echo "retention: removed backups older than $RETENTION_DAYS days"
 
+# Offsite copy (docs/08) — Cloudflare R2 free tier via rclone, optional.
+if [ -n "${BACKUP_RCLONE_REMOTE:-}" ]; then
+  rclone copy "$FILE" "$BACKUP_RCLONE_REMOTE" --s3-no-check-bucket
+  rclone delete "$BACKUP_RCLONE_REMOTE" --min-age "${RETENTION_DAYS}d" || true
+  echo "offsite: copied to $BACKUP_RCLONE_REMOTE"
+fi
+
 # Restore drill (docs/03 §7 — monthly):
 #   createdb signx_restore && gunzip -c FILE | psql signx_restore

@@ -86,10 +86,13 @@ describe('Marketplace profiles & directory (e2e, MP-1/2/3)', () => {
       .send({ displayName: 'Hidden Biz', category: 'Retail', services: ['x'] })
       .expect(200);
 
-    const res = await request(server).get('/api/v1/public/directory').expect(200);
-    expect(res.body.meta.total).toBe(1);
-    const entry = res.body.data[0];
-    expect(entry.slug).toBe(slug);
+    // Other suites may publish their own profiles into the shared e2e DB —
+    // assert on OUR slugs, not absolute totals.
+    const res = await request(server).get('/api/v1/public/directory?limit=100').expect(200);
+    const slugs = res.body.data.map((e: { slug: string }) => e.slug);
+    expect(slugs).toContain(slug);
+    expect(slugs).not.toContain('hidden-biz');
+    const entry = res.body.data.find((e: { slug: string }) => e.slug === slug);
     expect(entry.verified).toBe(false);
     // Nothing internal leaks on public surfaces.
     expect(JSON.stringify(entry)).not.toMatch(/tenantId|"id"/);
@@ -97,7 +100,7 @@ describe('Marketplace profiles & directory (e2e, MP-1/2/3)', () => {
     const filtered = await request(server)
       .get('/api/v1/public/directory?q=pos&city=lahore')
       .expect(200);
-    expect(filtered.body.meta.total).toBe(1);
+    expect(filtered.body.data.map((e: { slug: string }) => e.slug)).toContain(slug);
     const miss = await request(server).get('/api/v1/public/directory?category=plumbing').expect(200);
     expect(miss.body.meta.total).toBe(0);
   });
@@ -130,8 +133,9 @@ describe('Marketplace profiles & directory (e2e, MP-1/2/3)', () => {
       .send({ token: verifyToken })
       .expect(400);
 
-    const dir = await request(server).get('/api/v1/public/directory').expect(200);
-    expect(dir.body.data[0].verified).toBe(true);
+    const dir = await request(server).get('/api/v1/public/directory?limit=100').expect(200);
+    const mine = dir.body.data.find((e: { slug: string }) => e.slug === slug);
+    expect(mine.verified).toBe(true);
   });
 
   it("B's profile edits never touch A's (T-1 by construction)", async () => {

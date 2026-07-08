@@ -1,0 +1,19 @@
+# TLS is automatic (Let's Encrypt) — just point the domain's A record
+# at the VM and open ports 80/443.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+
+	# API (NestJS) — the app serves everything under /api/v1.
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+
+	# Everything else — the Next.js app (public marketplace + dashboard).
+	handle {
+		reverse_proxy web:3000
+	}
+}
